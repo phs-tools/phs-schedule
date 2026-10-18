@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { WeekNav } from "@/components/WeekNav";
 import {
   getScheduleForWeek,
   type VisiblePeriod,
@@ -6,7 +6,6 @@ import {
   transformScheduleToDate,
   intervalToPortable,
 } from "@/lib/schedule";
-import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateTime } from "luxon";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -35,6 +34,7 @@ export default async function WeekView({
   const weekStart = DateTime.fromFormat(params.date, "yyyy-LL-dd");
 
   const schedule = await getScheduleForWeek(weekStart);
+  const hasCustomTitle = schedule.some((s) => !!s.message);
   let latestDismissal: DateTime | null = weekStart.set({
     hour: 14,
     minute: 30,
@@ -55,9 +55,9 @@ export default async function WeekView({
 
   return (
     <>
-      <div className="flex h-screen flex-col justify-center">
-        <WeekNav date={weekStart} />
-        <main className="flex max-h-[800px] flex-1 items-stretch justify-center">
+      <div className="flex h-screen flex-col">
+        <WeekNav date={weekStart.toFormat("yyyy-LL-dd")} />
+        <main className="flex max-h-[800px] flex-1 items-stretch justify-center overflow-hidden">
           {schedule.map((schedule) => {
             const { date, periods } = schedule;
 
@@ -88,6 +88,7 @@ export default async function WeekView({
                 key={date.weekday}
                 minutesBeforeMax={minutesBeforeMax}
                 temporalSizing
+                hasCustomTitle={hasCustomTitle}
               />
             );
           })}
@@ -98,77 +99,37 @@ export default async function WeekView({
   );
 }
 
-function WeekNav({ date }: { date: DateTime }) {
-  return (
-    <nav className="flex flex-col items-center gap-1">
-      <div className="flex items-center justify-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          aria-label="Previous week"
-          className="print:hidden"
-        >
-          <Link
-            href={`/week/${date.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
-            prefetch
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" asChild className="print:hidden">
-          <Link href="/week" prefetch>
-            Today
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          aria-label="Next week"
-          className="print:hidden"
-        >
-          <Link
-            href={`/week/${date.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
-            prefetch
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-      <h1 className="min-w-[150px] text-center text-neutral-600 dark:text-neutral-400">
-        Week of{" "}
-        <span className="font-medium text-neutral-900 dark:text-neutral-100">
-          {date.toFormat("LLLL d")}
-        </span>
-      </h1>
-    </nav>
-  );
-}
-
 function DailyScheduleView({
   schedule,
   date,
   minutesBeforeMax,
   temporalSizing,
+  hasCustomTitle,
 }: {
   schedule: DailySchedule;
   date: DateTime;
   minutesBeforeMax?: number;
   temporalSizing?: boolean;
+  hasCustomTitle?: boolean;
 }) {
   const { periods } = schedule;
 
   return (
-    <div className="flex max-w-52 flex-1 flex-col justify-center p-2">
-      <div className="flex h-12 flex-col justify-center">
+    <div className="flex max-w-52 flex-1 flex-col p-2">
+      <div
+        className={`flex flex-col items-center gap-1 pt-2 ${
+          hasCustomTitle ? "min-h-[72px]" : ""
+        }`}
+      >
         {date && (
-          <h2 className="text-center">
-            {date.weekdayLong}{" "}
-            <span className="text-neutral-500 dark:text-neutral-400">
-              {date.toFormat("M/d")}
-            </span>
-          </h2>
+          <Link href={`/day/${date.toFormat("yyyy-LL-dd")}`} prefetch>
+            <button className="flex min-w-[160px] cursor-pointer select-none items-center justify-center gap-1 rounded-md border-none bg-transparent px-2 py-1 text-center text-base text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 print:hidden">
+              {date.weekdayLong}{" "}
+              <span className="text-neutral-500 dark:text-neutral-400">
+                {date.toFormat("M/d")}
+              </span>
+            </button>
+          </Link>
         )}
         {schedule.message && (
           <p className="text-center text-sm text-neutral-700 dark:text-neutral-300">
@@ -176,7 +137,7 @@ function DailyScheduleView({
           </p>
         )}
       </div>
-      <div className="flex flex-1 flex-col justify-center">
+      <div className="flex flex-1 flex-col justify-start">
         {periods.map((period) => (
           <PeriodBlock
             portablePeriod={{

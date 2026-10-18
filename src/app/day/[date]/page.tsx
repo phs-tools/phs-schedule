@@ -1,11 +1,9 @@
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "@/components/PeriodBlock";
-import { Button } from "@/components/ui/button";
 import { getScheduleForDay, intervalToPortable } from "@/lib/schedule";
-import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateTime } from "luxon";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DayNav } from "@/components/DayNav";
 
 export default async function DayView({
   params,
@@ -24,7 +22,7 @@ export default async function DayView({
   return (
     <div>
       <div className="sticky left-0 right-0 top-0 flex flex-col items-center bg-white/40 p-4 backdrop-blur-sm dark:bg-neutral-900/40">
-        <DayNav date={date} />
+        <DayNav date={date.toFormat("yyyy-LL-dd")} />
         {message && (
           <p className="text-center text-neutral-700 dark:text-neutral-300">
             {message}
@@ -49,50 +47,5 @@ export default async function DayView({
       </div>
       <InfoMenu />
     </div>
-  );
-}
-
-function DayNav({ date }: { date: DateTime }) {
-  return (
-    <nav className="flex flex-col items-center gap-1">
-      <div className="flex items-center justify-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          aria-label="Yesterday"
-          className="print:hidden"
-        >
-          <Link
-            href={`/day/${date.minus({ days: 1 }).toFormat("yyyy-LL-dd")}`}
-            prefetch
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Link>
-        </Button>
-        <Button variant="ghost" size="sm" asChild className="print:hidden">
-          <Link href="/day" prefetch>
-            Today
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          aria-label="Tomorrow"
-          className="print:hidden"
-        >
-          <Link
-            href={`/day/${date.plus({ days: 1 }).toFormat("yyyy-LL-dd")}`}
-            prefetch
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-      <h1 className="min-w-[10rem] text-center font-medium text-neutral-900 dark:text-neutral-100">
-        {date.toFormat("EEEE, LLLL d")}
-      </h1>
-    </nav>
   );
 }
