@@ -1,7 +1,7 @@
 import { NextResponse, userAgent } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   console.log(request.nextUrl.pathname);
   const { device } = userAgent(request);
 

@@ -15,23 +15,25 @@ import { PeriodBlock } from "../../../components/PeriodBlock";
 export default async function WeekView({
   params,
 }: {
-  params: { date: string };
+  params: Promise<{ date: string }>;
 }) {
+  const { date } = await params;
+
   // If the date is invalid, redirect to the current week
-  if (!DateTime.fromFormat(params.date, "yyyy-LL-dd").isValid) {
+  if (!DateTime.fromFormat(date, "yyyy-LL-dd").isValid) {
     redirect(`/week`);
   }
 
   // If the date isn't the first day of the week, redirect to the first day of its week
-  if (DateTime.fromFormat(params.date, "yyyy-LL-dd").weekday !== 1) {
+  if (DateTime.fromFormat(date, "yyyy-LL-dd").weekday !== 1) {
     redirect(
-      `/week/${DateTime.fromFormat(params.date, "yyyy-LL-dd")
+      `/week/${DateTime.fromFormat(date, "yyyy-LL-dd")
         .startOf("week")
         .toFormat("yyyy-LL-dd")}`,
     );
   }
 
-  const weekStart = DateTime.fromFormat(params.date, "yyyy-LL-dd");
+  const weekStart = DateTime.fromFormat(date, "yyyy-LL-dd");
 
   const schedule = await getScheduleForWeek(weekStart);
   const hasCustomTitle = schedule.some((s) => !!s.message);

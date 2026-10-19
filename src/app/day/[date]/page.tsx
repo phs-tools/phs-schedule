@@ -8,14 +8,16 @@ import { DayNav } from "@/components/DayNav";
 export default async function DayView({
   params,
 }: {
-  params: { date: string };
+  params: Promise<{ date: string }>;
 }) {
+  const { date: dateStr } = await params;
+
   // If the date is invalid, redirect to the current day
-  if (!DateTime.fromFormat(params.date, "yyyy-LL-dd").isValid) {
+  if (!DateTime.fromFormat(dateStr, "yyyy-LL-dd").isValid) {
     redirect(`/day`);
   }
 
-  const date = DateTime.fromFormat(params.date, "yyyy-LL-dd");
+  const date = DateTime.fromFormat(dateStr, "yyyy-LL-dd");
 
   const { periods, message } = await getScheduleForDay(date);
 
