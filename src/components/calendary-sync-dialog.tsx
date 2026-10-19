@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const PERIOD_FIELDS = [
   { key: "one", placeholder: "1st Period" },
@@ -24,13 +24,9 @@ const PERIOD_FIELDS = [
 ] as const;
 
 export function CalendarSyncDialog() {
-  const [origin, setOrigin] = useState("");
+  const [origin] = useState(window.location.origin);
   const [customPeriods, setCustomPeriods] = useState(false);
   const [periodNames, setPeriodNames] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
 
   const params = new URLSearchParams();
   if (customPeriods) {
