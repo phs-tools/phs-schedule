@@ -81,9 +81,7 @@ async function fetchAndParseIcs(): Promise<IcsRow[]> {
     return cachedParsedResult;
   }
   try {
-    const responses = await Promise.all(
-      ICS_URLS.map((url) => fetch(url, { cache: "no-cache" })),
-    );
+    const responses = await Promise.all(ICS_URLS.map((url) => fetch(url)));
     for (const response of responses) {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -403,12 +401,21 @@ const dayToSummary: Record<number, string> = {
   5: "Wednesday/Friday Bell Schedule ",
 };
 
-export async function generateDayOverrides() {
-  try {
-    const ics = await fetchAndParseIcs();
+let overridesPromise: Promise<Record<string, DailySchedule> | null> | null =
+  null;
 
-    return await getOverridesFromIcs(ics);
-  } catch (error) {
-    console.error("Error running script:", error);
+export async function generateDayOverrides() {
+  if (!overridesPromise) {
+    overridesPromise = (async () => {
+      try {
+        const ics = await fetchAndParseIcs();
+        return await getOverridesFromIcs(ics);
+      } catch (error) {
+        console.error("Error running script:", error);
+        overridesPromise = null; // allow retry on next call
+        return null;
+      }
+    })();
   }
+  return overridesPromise;
 }
