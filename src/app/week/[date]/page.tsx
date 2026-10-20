@@ -9,6 +9,7 @@ import {
 import { DateTime } from "luxon";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AnimatedSchedule } from "@/components/AnimatedSchedule";
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "../../../components/PeriodBlock";
 
@@ -60,40 +61,45 @@ export default async function WeekView({
       <div className="flex h-screen flex-col">
         <WeekNav date={weekStart.toFormat("yyyy-LL-dd")} />
         <main className="flex max-h-[800px] flex-1 items-stretch justify-center overflow-hidden">
-          {schedule.map((schedule) => {
-            const { date, periods } = schedule;
+          <AnimatedSchedule
+            viewKey={weekStart.toFormat("yyyy-LL-dd")}
+            name="week"
+          >
+            {schedule.map((schedule) => {
+              const { date, periods } = schedule;
 
-            if (periods.length === 0 && date.isWeekend) {
-              return null;
-            }
-
-            const visiblePeriods: VisiblePeriod[] = [];
-
-            for (const period of periods) {
-              if (period.type !== "passing") {
-                visiblePeriods.push(period);
+              if (periods.length === 0 && date.isWeekend) {
+                return null;
               }
-            }
 
-            const dismissal = transformScheduleToDate(schedule, weekStart)
-              .periods[periods.length - 1]?.interval?.end;
+              const visiblePeriods: VisiblePeriod[] = [];
 
-            const minutesBeforeMax =
-              dismissal && latestDismissal
-                ? latestDismissal?.diff(dismissal, "minutes").minutes
-                : undefined;
+              for (const period of periods) {
+                if (period.type !== "passing") {
+                  visiblePeriods.push(period);
+                }
+              }
 
-            return (
-              <DailyScheduleView
-                schedule={schedule}
-                date={date}
-                key={date.weekday}
-                minutesBeforeMax={minutesBeforeMax}
-                temporalSizing
-                hasCustomTitle={hasCustomTitle}
-              />
-            );
-          })}
+              const dismissal = transformScheduleToDate(schedule, weekStart)
+                .periods[periods.length - 1]?.interval?.end;
+
+              const minutesBeforeMax =
+                dismissal && latestDismissal
+                  ? latestDismissal?.diff(dismissal, "minutes").minutes
+                  : undefined;
+
+              return (
+                <DailyScheduleView
+                  schedule={schedule}
+                  date={date}
+                  key={date.weekday}
+                  minutesBeforeMax={minutesBeforeMax}
+                  temporalSizing
+                  hasCustomTitle={hasCustomTitle}
+                />
+              );
+            })}
+          </AnimatedSchedule>
         </main>
       </div>
       <InfoMenu />

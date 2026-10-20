@@ -7,6 +7,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DatePickerMenu } from "@/components/DatePickerMenu";
+import { scheduleTransitionTypes } from "@/components/AnimatedSchedule";
 
 export function DayNav({ date }: { date: string }) {
   const router = useRouter();
@@ -24,6 +25,7 @@ export function DayNav({ date }: { date: string }) {
         >
           <Link
             href={`/day/${day.minus({ days: 1 }).toFormat("yyyy-LL-dd")}`}
+            transitionTypes={scheduleTransitionTypes("day", "prev")}
             prefetch
           >
             <ChevronLeftIcon className="h-4 w-4" />
@@ -43,6 +45,7 @@ export function DayNav({ date }: { date: string }) {
         >
           <Link
             href={`/day/${day.plus({ days: 1 }).toFormat("yyyy-LL-dd")}`}
+            transitionTypes={scheduleTransitionTypes("day", "next")}
             prefetch
           >
             <ChevronRightIcon className="h-4 w-4" />
