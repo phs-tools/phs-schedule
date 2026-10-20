@@ -2,114 +2,148 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useState,
+  useSyncExternalStore,
   type PropsWithChildren,
 } from "react";
+import { FAVICON_DARK, FAVICON_LIGHT } from "@/lib/favicon";
 
-type StoredTheme = "light" | "dark" | "system";
-type ResolvedTheme = "light" | "dark";
+export type StoredTheme = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
+
+const STORAGE_KEY = "phs-schedule-theme";
+const STORAGE_EVENT = "phs-schedule-theme-change";
 
 interface ThemeContextType {
+  /** The theme in effect, with "system" already resolved against the OS. */
   theme: ResolvedTheme;
-  setTheme: (theme: StoredTheme) => void;
+  /** The user's stored preference, which may be "system". */
   storedTheme: StoredTheme;
+  setTheme: (theme: StoredTheme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
-  setTheme: () => {},
   storedTheme: "system",
+  setTheme: () => {},
 });
 
 function getStoredTheme(): StoredTheme {
   try {
-    const val = localStorage.getItem("phs-schedule-theme");
-    if (val === "light" || val === "dark" || val === "system") {
-      return val;
+    const value = localStorage.getItem(STORAGE_KEY);
+    if (value === "light" || value === "dark" || value === "system") {
+      return value;
     }
   } catch {}
   return "system";
 }
 
-function getSystemTheme(): ResolvedTheme {
-  if (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  ) {
-    return "dark";
-  }
-  return "light";
+function resolveTheme(stored: StoredTheme): ResolvedTheme {
+  if (stored !== "system") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
-function resolveTheme(theme: StoredTheme): ResolvedTheme {
-  if (theme === "system") {
-    return getSystemTheme();
-  }
-  return theme;
+function subscribeToStoredTheme(onStoreChange: () => void) {
+  // "storage" fires in other tabs; the custom event fires in this one.
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(STORAGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(STORAGE_EVENT, onStoreChange);
+  };
 }
 
-interface ThemeState {
-  stored: StoredTheme;
-  resolved: ResolvedTheme;
+function getSystemTheme(): boolean {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function subscribeToSystemTheme(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function applyTheme(theme: ResolvedTheme) {
+  const html = document.documentElement;
+  html.classList.remove("light", "dark");
+  html.classList.add(theme);
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const [themeState, setThemeState] = useState<ThemeState>({
-    stored: "system",
-    resolved: "light",
-  });
-  const [isMounted, setIsMounted] = useState(false);
+  // `useSyncExternalStore` reads the stored preference and the OS preference
+  // without a setState-in-effect round trip, and keeps the OS preference live
+  // while the stored one is "system".
+  const storedTheme = useSyncExternalStore(
+    subscribeToStoredTheme,
+    getStoredTheme,
+    () => "system" as const,
+  );
+  const prefersDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    () => false,
+  );
 
-  // Read stored theme from localStorage on the client.
-  // localStorage is unavailable during SSR, so we sync it here on mount.
-  // The theme class itself is already on <html> by this point (the pre-paint
-  // script in the root layout applies it), so we only need to read it here to
-  // keep our state in sync.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    const stored = getStoredTheme();
-    setThemeState({ stored, resolved: resolveTheme(stored) });
-    setIsMounted(true);
-  }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  const theme: ResolvedTheme =
+    storedTheme === "system" ? (prefersDark ? "dark" : "light") : storedTheme;
 
-  // Apply theme class to <html>
+  // The pre-paint script in the root layout applies the theme class before the
+  // first paint, so the class is deliberately never derived from a render
+  // value here: during hydration the resolved theme is still the server
+  // snapshot, and applying it would fight the script. The class is written
+  // imperatively instead, where the current value is known to be fresh.
   useEffect(() => {
-    // Skip the first run: the class was already applied before paint, and
-    // re-applying it here would flash the wrong theme.
-    if (!isMounted) return;
     const html = document.documentElement;
-    html.classList.remove("light", "dark");
-    html.classList.add(themeState.resolved);
-  }, [isMounted, themeState.resolved]);
+    // Fill in only if the pre-paint script could not run.
+    if (!html.classList.contains("light") && !html.classList.contains("dark")) {
+      applyTheme(resolveTheme(getStoredTheme()));
+    }
+  }, []);
 
-  // Listen for system preference changes when theme is set to "system"
+  // Follow the OS while the preference is "system", and pick up changes made
+  // in another tab.
   useEffect(() => {
-    if (themeState.stored !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () =>
-      setThemeState((prev) => ({ ...prev, resolved: getSystemTheme() }));
-    media.addEventListener("change", handler);
-    return () => media.removeEventListener("change", handler);
-  }, [themeState.stored]);
+    const onSystemChange = () => {
+      if (getStoredTheme() === "system") {
+        applyTheme(resolveTheme("system"));
+      }
+    };
+    // A change in another tab may set any preference, so always re-apply.
+    const onStorageChange = () => {
+      applyTheme(resolveTheme(getStoredTheme()));
+    };
+    media.addEventListener("change", onSystemChange);
+    window.addEventListener("storage", onStorageChange);
+    return () => {
+      media.removeEventListener("change", onSystemChange);
+      window.removeEventListener("storage", onStorageChange);
+    };
+  }, []);
 
-  const setTheme = (newTheme: StoredTheme) => {
-    setThemeState({ stored: newTheme, resolved: resolveTheme(newTheme) });
+  const setTheme = useCallback((next: StoredTheme) => {
     try {
-      localStorage.setItem("phs-schedule-theme", newTheme);
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {}
-  };
+    // Apply immediately so the change is not deferred to the next render.
+    applyTheme(resolveTheme(next));
+    window.dispatchEvent(new Event(STORAGE_EVENT));
+  }, []);
 
   return (
-    <ThemeContext.Provider
-      value={{
-        theme: themeState.resolved,
-        setTheme,
-        storedTheme: themeState.stored,
-      }}
-    >
+    <ThemeContext.Provider value={{ theme, storedTheme, setTheme }}>
+      {/*
+        The favicon follows the app's theme, which is driven by a class on
+        <html> rather than the OS preference, so it cannot be selected with a
+        `media` query. Rendering the link here lets React own it and keep it
+        in sync with the theme, rather than having the theme script and
+        React fight over the same element.
+      */}
+      <link rel="icon" href={theme === "dark" ? FAVICON_DARK : FAVICON_LIGHT} />
       {children}
     </ThemeContext.Provider>
   );

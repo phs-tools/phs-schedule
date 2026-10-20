@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Barlow } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -35,12 +35,6 @@ const themeScript = `
 export const metadata: Metadata = {
   title: "PHS Schedule",
   description: "An interactive schedule for students at Piedmont High School.",
-  icons: {
-    icon: [
-      { url: "/icon.svg" },
-      { url: "/icon-dark.svg", media: "(prefers-color-scheme: dark)" },
-    ],
-  },
 };
 
 export default function RootLayout({
