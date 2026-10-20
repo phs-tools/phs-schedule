@@ -23,7 +23,7 @@ export default async function DayView({
 
   return (
     <div>
-      <div className="sticky left-0 right-0 top-0 flex flex-col items-center bg-white/40 p-4 backdrop-blur-sm dark:bg-neutral-900/40">
+      <div className="sticky top-0 right-0 left-0 flex flex-col items-center bg-white/40 p-4 backdrop-blur-sm dark:bg-neutral-900/40">
         <DayNav date={date.toFormat("yyyy-LL-dd")} />
         {message && (
           <p className="text-center text-neutral-700 dark:text-neutral-300">

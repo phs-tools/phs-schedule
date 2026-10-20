@@ -131,7 +131,7 @@ function CopyLinkButton(props: { link: string }) {
       >
         <span className="sr-only">Copy link</span>
         <span
-          className="flex-1 overflow-hidden whitespace-nowrap text-start"
+          className="flex-1 overflow-hidden text-start whitespace-nowrap"
           style={{
             maskImage:
               "linear-gradient(to right, black calc(100% - 2rem), transparent)",
