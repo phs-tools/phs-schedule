@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 /*
+ * `tailwindcss-animate` supplies the `animate-in` / `animate-out` and
+ * `fade-in-*` / `zoom-*` / `slide-in-from-*` utilities used by the dialog and
+ * dropdown-menu components. In Tailwind v4 JS plugins are loaded with
+ * `@plugin` rather than from `tailwind.config.ts`.
+ */
+@plugin "tailwindcss-animate";
+
+/*
  * The app drives dark mode with a `.dark` class on <html> (see theme-provider),
  * but Tailwind v4 binds the `dark:` variant to the OS `prefers-color-scheme`
  * media query by default. That makes `dark:` utilities follow the OS instead of
