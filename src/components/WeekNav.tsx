@@ -52,7 +52,9 @@ export function WeekNav({ date }: { date: string }) {
       <DatePickerMenu
         label={
           <>
-            Week of{" "}
+            <span className="text-neutral-600 dark:text-neutral-400">
+              Week of{" "}
+            </span>
             <span className="font-medium text-neutral-900 dark:text-neutral-100">
               {weekStart.toFormat("LLLL d")}
             </span>

@@ -11,7 +11,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+/**
+ * `window` is not available while rendering on the server, so the origin is
+ * read through `useSyncExternalStore`: the server snapshot is empty and the
+ * client snapshot reads `window.location.origin`.
+ */
+function subscribeToOrigin() {
+  return () => {};
+}
+
+function useOrigin() {
+  return useSyncExternalStore(
+    subscribeToOrigin,
+    () => window.location.origin,
+    () => "",
+  );
+}
 
 const PERIOD_FIELDS = [
   { key: "one", placeholder: "1st Period" },
@@ -24,13 +41,9 @@ const PERIOD_FIELDS = [
 ] as const;
 
 export function CalendarSyncDialog() {
-  const [origin, setOrigin] = useState("");
+  const origin = useOrigin();
   const [customPeriods, setCustomPeriods] = useState(false);
   const [periodNames, setPeriodNames] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
 
   const params = new URLSearchParams();
   if (customPeriods) {
@@ -118,7 +131,7 @@ function CopyLinkButton(props: { link: string }) {
       >
         <span className="sr-only">Copy link</span>
         <span
-          className="flex-1 overflow-hidden whitespace-nowrap text-start"
+          className="flex-1 overflow-hidden text-start whitespace-nowrap"
           style={{
             maskImage:
               "linear-gradient(to right, black calc(100% - 2rem), transparent)",

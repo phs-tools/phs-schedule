@@ -1,8 +1,7 @@
 import { NextResponse, userAgent } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  console.log(request.nextUrl.pathname);
+export function proxy(request: NextRequest) {
   const { device } = userAgent(request);
 
   if (device.type === "mobile") {

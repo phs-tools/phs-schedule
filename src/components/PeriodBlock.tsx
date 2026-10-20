@@ -98,7 +98,7 @@ const ProgressIndicator = ({ progress }: { progress: number }) => {
   return (
     <div className="relative my-2 w-[5px] overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
       <div
-        className="absolute left-0 right-0 top-0 rounded-full bg-purple transition"
+        className="absolute top-0 right-0 left-0 rounded-full bg-purple transition"
         style={{ height: Math.round(progress * 100) + "%" }}
       />
     </div>

@@ -24,7 +24,7 @@ export default function InfoMenu() {
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-      <div className="fixed bottom-2 right-2 print:hidden">
+      <div className="fixed right-2 bottom-2 print:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label="More options">

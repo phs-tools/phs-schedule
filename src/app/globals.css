@@ -1,12 +1,51 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+ * `tailwindcss-animate` supplies the `animate-in` / `animate-out` and
+ * `fade-in-*` / `zoom-*` / `slide-in-from-*` utilities used by the dialog and
+ * dropdown-menu components. In Tailwind v4 JS plugins are loaded with
+ * `@plugin` rather than from `tailwind.config.ts`.
+ */
+@plugin "tailwindcss-animate";
+
+/*
+ * The app drives dark mode with a `.dark` class on <html> (see theme-provider),
+ * but Tailwind v4 binds the `dark:` variant to the OS `prefers-color-scheme`
+ * media query by default. That makes `dark:` utilities follow the OS instead of
+ * the user's choice, so light mode keeps dark colors around. Re-point the
+ * variant at the class the app actually toggles.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-purple: #591f85;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
 
 html {
   color-scheme: light;
 }
 
-.dark {
+html.dark {
   color-scheme: dark;
 }
 
@@ -15,7 +54,7 @@ body {
   color: #171717;
 }
 
-.dark body {
+html.dark body {
   background-color: #0a0a0a;
   color: #fafafa;
 }

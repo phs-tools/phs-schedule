@@ -23,8 +23,7 @@ export type InvisiblePeriod = {
 export type Period = VisiblePeriod | InvisiblePeriod;
 
 export type PortablePeriod = (
-  | Omit<VisiblePeriod, "interval">
-  | Omit<InvisiblePeriod, "interval">
+  Omit<VisiblePeriod, "interval"> | Omit<InvisiblePeriod, "interval">
 ) & {
   interval: PortableInterval;
 };
