@@ -69,6 +69,13 @@ export default async function WeekView({
            * browser's back button, ...) falls through to `default: "none"`.
            */}
           <ViewTransition
+            /*
+             * The key forces React to treat consecutive weeks as an
+             * exit/enter pair rather than an in-place update (which would
+             * use the `update` animation class and play nothing, since
+             * `default` is "none").
+             */
+            key={weekStart.toFormat("yyyy-LL-dd")}
             enter={{
               "week-prev": "week-prev",
               "week-next": "week-next",
