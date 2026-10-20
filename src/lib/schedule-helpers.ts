@@ -37,11 +37,36 @@ export const finalPeriod = (
     ),
   };
 };
-export const academyPeriod = (start: string, end: string): Period => {
+export const DEFAULT_ACADEMY_ACTIVITY = "Office Hours";
+
+// Academy periods are homeroom periods; the calendar names the activity
+// ("Academy - Office Hours"), defaulting to Office Hours when it doesn't.
+export const academyPeriod = (
+  start: string,
+  end: string,
+  activity: string = DEFAULT_ACADEMY_ACTIVITY,
+): Period => {
   return {
     id: "academy",
-    type: "instructional",
-    name: "Academy",
+    type: "homeroom",
+    name: activity ? `Academy - ${activity}` : "Academy",
+    interval: Interval.fromDateTimes(
+      DateTime.fromISO(start),
+      DateTime.fromISO(end),
+    ),
+  };
+};
+// Rally/testing/homeroom blocks from the bell schedules keep their source
+// names but are homeroom periods all the same.
+export const homeroomPeriod = (
+  name: string,
+  start: string,
+  end: string,
+): Period => {
+  return {
+    id: name.toLowerCase().replace(/\s+/g, "-"),
+    type: "homeroom",
+    name,
     interval: Interval.fromDateTimes(
       DateTime.fromISO(start),
       DateTime.fromISO(end),

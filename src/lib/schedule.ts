@@ -11,7 +11,9 @@ Settings.defaultZone = "America/Los_Angeles";
 export type VisiblePeriod = {
   interval: Interval;
   id: string;
-  type: "instructional" | "break";
+  // "homeroom" covers Academy, Rally, and testing blocks — periods students
+  // spend in their homeroom rather than in a class.
+  type: "instructional" | "break" | "homeroom";
   name: string;
 };
 

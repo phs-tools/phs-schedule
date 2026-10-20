@@ -70,7 +70,8 @@ export async function GET(request: Request) {
   const { error, value: events } = ics.createEvents(
     allPeriods
       .filter(
-        (period): period is VisiblePeriod => period.type === "instructional",
+        (period): period is VisiblePeriod =>
+          period.type === "instructional" || period.type === "homeroom",
       )
       .map((period) => {
         const periodName = period.name;

@@ -35,11 +35,14 @@ export function PeriodBlock({
   const hasHappened = period.interval.isBefore(now);
   const isHappening = period.interval.contains(now);
 
+  // Homeroom periods (academy, rally, testing) render like class periods.
+  const isClassLike =
+    period.type === "instructional" || period.type === "homeroom";
+
   // Lunch/brunch are breaks, but calendar imports can misclassify them as
   // instructional ("LUNCH", "Brunch Advisory", ...). Never show a progress bar
   // on them either way. Passing periods are invisible spacers and never had one.
-  const showProgress =
-    period.type === "instructional" && !/lunch|brunch/i.test(period.name ?? "");
+  const showProgress = isClassLike && !/lunch|brunch/i.test(period.name ?? "");
 
   if (period.type === "passing")
     return (
@@ -60,7 +63,7 @@ export function PeriodBlock({
     <div
       className={cn(
         "flex min-h-11 items-stretch justify-center transition duration-500",
-        period.type === "instructional" &&
+        isClassLike &&
           "justify-stretch rounded-md border border-neutral-200 shadow-sm dark:border-neutral-800",
         hasHappened && "opacity-50",
       )}
@@ -72,8 +75,8 @@ export function PeriodBlock({
         className={cn(
           "flex flex-row items-stretch justify-stretch gap-2 px-3 text-sm transition duration-500",
           period.type === "break" && "justify-center",
-          !temporalSizing && period.type === "instructional" && "p-3",
-          isHappening && period.type === "instructional" && "pl-2",
+          !temporalSizing && isClassLike && "p-3",
+          isHappening && isClassLike && "pl-2",
         )}
       >
         {showProgress && (
