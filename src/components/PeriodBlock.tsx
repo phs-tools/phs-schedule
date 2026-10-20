@@ -1,6 +1,7 @@
 "use client";
 
 import { Period, PortablePeriod, portableToInterval } from "@/lib/schedule";
+import { getNow } from "@/lib/now";
 import { cn } from "@/lib/utils";
 import { DateTime } from "luxon";
 import { useState, useEffect } from "react";
@@ -17,11 +18,15 @@ export function PeriodBlock({
     interval: portableToInterval(portablePeriod.interval),
   };
 
-  const [now, setNow] = useState(DateTime.now());
+  const [now, setNow] = useState<DateTime<boolean>>(DateTime.now());
 
   useEffect(() => {
+    // Re-read once on mount so a stored time override applies immediately
+    // (getNow falls back to the real clock on the server).
+    setNow(getNow());
+
     const interval = setInterval(() => {
-      setNow(DateTime.now());
+      setNow(getNow());
     }, 1000);
 
     return () => clearInterval(interval);
