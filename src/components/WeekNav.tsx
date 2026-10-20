@@ -24,6 +24,7 @@ export function WeekNav({ date }: { date: string }) {
         >
           <Link
             href={`/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
+            transitionTypes={["week-prev"]}
             prefetch
           >
             <ChevronLeftIcon className="h-4 w-4" />
@@ -43,6 +44,7 @@ export function WeekNav({ date }: { date: string }) {
         >
           <Link
             href={`/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
+            transitionTypes={["week-next"]}
             prefetch
           >
             <ChevronRightIcon className="h-4 w-4" />

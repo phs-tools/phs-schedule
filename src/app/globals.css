@@ -58,3 +58,69 @@ html.dark body {
   background-color: #0a0a0a;
   color: #fafafa;
 }
+
+/*
+ * Week navigation. The previous/next week links tag their navigation with
+ * the `week-prev` / `week-next` transition types (see WeekNav), and the
+ * <ViewTransition> wrapper in app/week/[date]/page.tsx maps those types to
+ * these classes. Moving to a later week slides the old grid out to the left
+ * and brings the new one in from the right; going back does the opposite.
+ */
+::view-transition-old(.week-next) {
+  --slide-offset: -60px;
+  animation:
+    150ms ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.week-next) {
+  --slide-offset: 60px;
+  animation:
+    210ms ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+::view-transition-old(.week-prev) {
+  --slide-offset: 60px;
+  animation:
+    150ms ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.week-prev) {
+  --slide-offset: -60px;
+  animation:
+    210ms ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+@keyframes fade {
+  from {
+    filter: blur(3px);
+    opacity: 0;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+@keyframes slide {
+  from {
+    translate: var(--slide-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+/* The transition overlay would otherwise swallow clicks mid-animation. */
+::view-transition {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
