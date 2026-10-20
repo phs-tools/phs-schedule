@@ -11,7 +11,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+/**
+ * `window` is not available while rendering on the server, so the origin is
+ * read through `useSyncExternalStore`: the server snapshot is empty and the
+ * client snapshot reads `window.location.origin`.
+ */
+function subscribeToOrigin() {
+  return () => {};
+}
+
+function useOrigin() {
+  return useSyncExternalStore(
+    subscribeToOrigin,
+    () => window.location.origin,
+    () => "",
+  );
+}
 
 const PERIOD_FIELDS = [
   { key: "one", placeholder: "1st Period" },
@@ -24,7 +41,7 @@ const PERIOD_FIELDS = [
 ] as const;
 
 export function CalendarSyncDialog() {
-  const [origin] = useState(window.location.origin);
+  const origin = useOrigin();
   const [customPeriods, setCustomPeriods] = useState(false);
   const [periodNames, setPeriodNames] = useState<Record<string, string>>({});
 
