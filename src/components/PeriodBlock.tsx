@@ -30,6 +30,12 @@ export function PeriodBlock({
   const hasHappened = period.interval.isBefore(now);
   const isHappening = period.interval.contains(now);
 
+  // Lunch/brunch are breaks, but calendar imports can misclassify them as
+  // instructional ("LUNCH", "Brunch Advisory", ...). Never show a progress bar
+  // on them either way. Passing periods are invisible spacers and never had one.
+  const showProgress =
+    period.type === "instructional" && !/lunch|brunch/i.test(period.name ?? "");
+
   if (period.type === "passing")
     return (
       <div
@@ -66,7 +72,7 @@ export function PeriodBlock({
           isHappening && period.type === "instructional" && "pl-2",
         )}
       >
-        {period.type === "instructional" && (
+        {showProgress && (
           <ProgressIndicator
             progress={
               (now.toMillis() - (period.interval.start?.toMillis() ?? 0)) /
