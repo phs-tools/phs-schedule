@@ -1,5 +1,6 @@
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "@/components/PeriodBlock";
+import { AnimatedSchedule } from "@/components/AnimatedSchedule";
 import { getScheduleForDay, intervalToPortable } from "@/lib/schedule";
 import { DateTime } from "luxon";
 import { redirect } from "next/navigation";
@@ -32,20 +33,22 @@ export default async function DayView({
         )}
       </div>
       <div className="mx-auto flex max-w-lg flex-1 flex-col justify-center px-8 pb-8">
-        {periods.map((period) => (
-          <PeriodBlock
-            portablePeriod={{
-              ...period,
-              interval: intervalToPortable(period.interval),
-            }}
-            key={period.interval.toString()}
-          />
-        ))}
-        {periods.length === 0 && (
-          <p className="text-center text-neutral-500 dark:text-neutral-400">
-            No school
-          </p>
-        )}
+        <AnimatedSchedule viewKey={date.toFormat("yyyy-LL-dd")} name="day">
+          {periods.map((period) => (
+            <PeriodBlock
+              portablePeriod={{
+                ...period,
+                interval: intervalToPortable(period.interval),
+              }}
+              key={period.interval.toString()}
+            />
+          ))}
+          {periods.length === 0 && (
+            <p className="text-center text-neutral-500 dark:text-neutral-400">
+              No school
+            </p>
+          )}
+        </AnimatedSchedule>
       </div>
       <InfoMenu />
     </div>

@@ -60,18 +60,20 @@ html.dark body {
 }
 
 /*
- * Week navigation. The previous/next week links tag their navigation with
- * the `week-prev` / `week-next` transition types (see WeekNav), and the
- * <ViewTransition> wrapper in app/week/[date]/page.tsx maps those types to
- * these classes. Moving to a later week slides the old grid out to the left
- * and brings the new one in from the right; going back does the opposite.
+ * Day and week navigation. The prev/next links tag their navigation with
+ * `day-prev` / `day-next` and `week-prev` / `week-next` (see DayNav and
+ * WeekNav), and the <AnimatedSchedule> wrapper maps those types to these
+ * classes. Moving forward slides the old content out to the left and brings
+ * the new content in from the right; going back does the opposite.
  */
+::view-transition-old(.day-next),
 ::view-transition-old(.week-next) {
   --slide-offset: -60px;
   animation:
     150ms ease-in both fade reverse,
     400ms ease-in-out both slide reverse;
 }
+::view-transition-new(.day-next),
 ::view-transition-new(.week-next) {
   --slide-offset: 60px;
   animation:
@@ -79,12 +81,14 @@ html.dark body {
     400ms ease-in-out both slide;
 }
 
+::view-transition-old(.day-prev),
 ::view-transition-old(.week-prev) {
   --slide-offset: 60px;
   animation:
     150ms ease-in both fade reverse,
     400ms ease-in-out both slide reverse;
 }
+::view-transition-new(.day-prev),
 ::view-transition-new(.week-prev) {
   --slide-offset: -60px;
   animation:

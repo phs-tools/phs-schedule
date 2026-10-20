@@ -9,7 +9,7 @@ import {
 import { DateTime } from "luxon";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AnimatedWeek } from "@/components/AnimatedWeek";
+import { AnimatedSchedule } from "@/components/AnimatedSchedule";
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "../../../components/PeriodBlock";
 
@@ -61,7 +61,10 @@ export default async function WeekView({
       <div className="flex h-screen flex-col">
         <WeekNav date={weekStart.toFormat("yyyy-LL-dd")} />
         <main className="flex max-h-[800px] flex-1 items-stretch justify-center overflow-hidden">
-          <AnimatedWeek weekKey={weekStart.toFormat("yyyy-LL-dd")}>
+          <AnimatedSchedule
+            viewKey={weekStart.toFormat("yyyy-LL-dd")}
+            name="week"
+          >
             {schedule.map((schedule) => {
               const { date, periods } = schedule;
 
@@ -96,7 +99,7 @@ export default async function WeekView({
                 />
               );
             })}
-          </AnimatedWeek>
+          </AnimatedSchedule>
         </main>
       </div>
       <InfoMenu />
