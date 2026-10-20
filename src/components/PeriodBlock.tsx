@@ -1,6 +1,7 @@
 "use client";
 
 import { Period, PortablePeriod, portableToInterval } from "@/lib/schedule";
+import { getNow } from "@/lib/now";
 import { cn } from "@/lib/utils";
 import { DateTime } from "luxon";
 import { useState, useEffect } from "react";
@@ -17,11 +18,15 @@ export function PeriodBlock({
     interval: portableToInterval(portablePeriod.interval),
   };
 
-  const [now, setNow] = useState(DateTime.now());
+  const [now, setNow] = useState<DateTime<boolean>>(DateTime.now());
 
   useEffect(() => {
+    // Re-read once on mount so a stored time override applies immediately
+    // (getNow falls back to the real clock on the server).
+    setNow(getNow());
+
     const interval = setInterval(() => {
-      setNow(DateTime.now());
+      setNow(getNow());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -29,6 +34,12 @@ export function PeriodBlock({
 
   const hasHappened = period.interval.isBefore(now);
   const isHappening = period.interval.contains(now);
+
+  // Lunch/brunch are breaks, but calendar imports can misclassify them as
+  // instructional ("LUNCH", "Brunch Advisory", ...). Never show a progress bar
+  // on them either way. Passing periods are invisible spacers and never had one.
+  const showProgress =
+    period.type === "instructional" && !/lunch|brunch/i.test(period.name ?? "");
 
   if (period.type === "passing")
     return (
@@ -61,12 +72,11 @@ export function PeriodBlock({
         className={cn(
           "flex flex-row items-stretch justify-stretch gap-2 px-3 text-sm transition duration-500",
           period.type === "break" && "justify-center",
-          isHappening && period.type === "break" && "border-l-2 border-purple",
           !temporalSizing && period.type === "instructional" && "p-3",
           isHappening && period.type === "instructional" && "pl-2",
         )}
       >
-        {period.type === "instructional" && (
+        {showProgress && (
           <ProgressIndicator
             progress={
               (now.toMillis() - (period.interval.start?.toMillis() ?? 0)) /
