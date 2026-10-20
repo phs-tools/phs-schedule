@@ -9,7 +9,7 @@ import {
 import { DateTime } from "luxon";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ViewTransition } from "react";
+import { AnimatedWeek } from "@/components/AnimatedWeek";
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "../../../components/PeriodBlock";
 
@@ -61,33 +61,7 @@ export default async function WeekView({
       <div className="flex h-screen flex-col">
         <WeekNav date={weekStart.toFormat("yyyy-LL-dd")} />
         <main className="flex max-h-[800px] flex-1 items-stretch justify-center overflow-hidden">
-          {/*
-           * The prev/next week links tag their navigation with the
-           * `week-prev` / `week-next` transition types (see WeekNav), which
-           * the `::view-transition-*` rules in globals.css map to a slide in
-           * the direction of travel. Everything else (the week nav, the
-           * browser's back button, ...) falls through to `default: "none"`.
-           */}
-          <ViewTransition
-            /*
-             * The key forces React to treat consecutive weeks as an
-             * exit/enter pair rather than an in-place update (which would
-             * use the `update` animation class and play nothing, since
-             * `default` is "none").
-             */
-            key={weekStart.toFormat("yyyy-LL-dd")}
-            enter={{
-              "week-prev": "week-prev",
-              "week-next": "week-next",
-              default: "none",
-            }}
-            exit={{
-              "week-prev": "week-prev",
-              "week-next": "week-next",
-              default: "none",
-            }}
-            default="none"
-          >
+          <AnimatedWeek weekKey={weekStart.toFormat("yyyy-LL-dd")}>
             {schedule.map((schedule) => {
               const { date, periods } = schedule;
 
@@ -122,7 +96,7 @@ export default async function WeekView({
                 />
               );
             })}
-          </ViewTransition>
+          </AnimatedWeek>
         </main>
       </div>
       <InfoMenu />
