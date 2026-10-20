@@ -7,6 +7,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DatePickerMenu } from "@/components/DatePickerMenu";
+import { scheduleTransitionTypes } from "@/components/AnimatedSchedule";
 
 export function WeekNav({ date }: { date: string }) {
   const router = useRouter();
@@ -24,7 +25,7 @@ export function WeekNav({ date }: { date: string }) {
         >
           <Link
             href={`/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
-            transitionTypes={["week-prev"]}
+            transitionTypes={scheduleTransitionTypes("week", "prev")}
             prefetch
           >
             <ChevronLeftIcon className="h-4 w-4" />
@@ -44,7 +45,7 @@ export function WeekNav({ date }: { date: string }) {
         >
           <Link
             href={`/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
-            transitionTypes={["week-next"]}
+            transitionTypes={scheduleTransitionTypes("week", "next")}
             prefetch
           >
             <ChevronRightIcon className="h-4 w-4" />

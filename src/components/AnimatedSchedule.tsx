@@ -3,6 +3,26 @@
 import { ViewTransition } from "react";
 
 /**
+ * The views that animate; each one is the prefix of the CSS classes it uses
+ * (`day` → `.day-prev` / `.day-next` in globals.css). A union rather than a
+ * plain string, so a typo is a compile error instead of an animation that
+ * silently never runs.
+ */
+export type AnimatedScheduleName = "day" | "week";
+
+/**
+ * The transition types that drive the slide, for use with `Link`'s
+ * `transitionTypes` prop. Derived from {@link AnimatedScheduleName} so the
+ * navs and the wrapper can never disagree about the spelling.
+ */
+export function scheduleTransitionTypes(
+  name: AnimatedScheduleName,
+  direction: "prev" | "next",
+): string[] {
+  return [`${name}-${direction}`];
+}
+
+/**
  * Wraps the schedule content on the day and week views so that stepping to
  * the previous/next one animates in the direction of travel.
  *
@@ -30,7 +50,7 @@ export function AnimatedSchedule({
   /** Changing this remounts the content, so React sees an exit/enter pair. */
   viewKey: string;
   /** View transition name; must stay stable across navigations in a view. */
-  name: string;
+  name: AnimatedScheduleName;
   children: React.ReactNode;
 }) {
   const directions = {
