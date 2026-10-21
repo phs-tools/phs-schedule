@@ -1,3 +1,4 @@
+import "./zone";
 import { Interval, DateTime } from "luxon";
 import { DailySchedule, Period } from "./schedule";
 import { emptyDay } from "./schedule-templates";
@@ -37,11 +38,45 @@ export const finalPeriod = (
     ),
   };
 };
-export const academyPeriod = (start: string, end: string): Period => {
+export const DEFAULT_ACADEMY_NAME = "Academy - Office Hours";
+
+// Academy periods are homeroom periods. The name is either
+// "Academy - Office Hours" or "Academy - Homeroom", with the day's activity
+// ("Consent", "Assembly + Classroom Convos") as the subheading when there is
+// one worth showing.
+export const academyPeriod = (
+  start: string,
+  end: string,
+  name: string = DEFAULT_ACADEMY_NAME,
+  subheading?: string,
+): Period => {
   return {
     id: "academy",
-    type: "instructional",
-    name: "Academy",
+    type: "homeroom",
+    name,
+    subheading: subheading || undefined,
+    interval: Interval.fromDateTimes(
+      DateTime.fromISO(start),
+      DateTime.fromISO(end),
+    ),
+  };
+};
+// Rally/testing/homeroom blocks from the bell schedules are homeroom periods.
+// Most keep their source name; test blocks pass a displayName of
+// "Academy - Homeroom" so they read like every other homeroom block, with the
+// source name preserved as the subheading.
+export const ACADEMY_HOMEROOM_NAME = "Academy - Homeroom";
+export const homeroomPeriod = (
+  sourceName: string,
+  start: string,
+  end: string,
+  options: { displayName?: string; subheading?: string } = {},
+): Period => {
+  return {
+    id: sourceName.toLowerCase().replace(/\s+/g, "-"),
+    type: "homeroom",
+    name: options.displayName ?? sourceName,
+    subheading: options.subheading || undefined,
     interval: Interval.fromDateTimes(
       DateTime.fromISO(start),
       DateTime.fromISO(end),

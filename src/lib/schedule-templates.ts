@@ -1,3 +1,4 @@
+import "./zone";
 import { Interval, DateTime, WeekdayNumbers } from "luxon";
 import { Period, DailySchedule } from "./schedule";
 
@@ -198,8 +199,8 @@ export const evenPeriods: Period[] = [
   },
   {
     id: "academy",
-    type: "instructional",
-    name: "Academy",
+    type: "homeroom",
+    name: "Academy - Office Hours",
     interval: Interval.fromDateTimes(
       DateTime.fromISO("10:15:00"),
       DateTime.fromISO("11:00:00"),

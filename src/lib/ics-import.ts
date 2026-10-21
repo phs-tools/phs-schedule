@@ -1,13 +1,17 @@
+import "./zone";
 import ICAL from "ical.js";
 import crypto from "crypto";
-import { DateTime, Interval } from "luxon";
+import { DateTime, Interval, WeekdayNumbers } from "luxon";
 import {
   academyPeriod,
   brunchPeriod,
+  homeroomPeriod,
   instructionalPeriod,
   lunchPeriod,
   passingPeriod,
   vacation,
+  DEFAULT_ACADEMY_NAME,
+  ACADEMY_HOMEROOM_NAME,
 } from "./schedule-helpers";
 import {
   SCHOOL_YEAR_START,
@@ -15,16 +19,24 @@ import {
   DailySchedule,
   Period,
 } from "./schedule";
+import { defaultSchedule } from "./schedule-templates";
 import { messageOverrides } from "./day-overrides";
 
 // The bell-schedule calendar carries the special single-day schedules; the
-// events calendar carries breaks and no-school days. Neither alone is complete,
-// so both are fetched and merged.
+// events calendar carries breaks and no-school days; the academy calendar
+// names what happens during the academy/homeroom block. None alone is
+// complete, so all three are fetched and merged.
 const SCHEDULES_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_30d5a2c1a8f1c82ef97ae6a5339f97aee29fcd9c09fcd30a6c738022fff30753%40group.calendar.google.com/public/basic.ics";
 const EVENTS_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_feedbfeaeb52412221c1a8e6cdfc43ee1e6e68e71a0d85c5d955bf48f0feea55%40group.calendar.google.com/public/basic.ics";
-const ICS_URLS = [SCHEDULES_CALENDAR, EVENTS_CALENDAR];
+const ACADEMY_CALENDAR =
+  "https://calendar.google.com/calendar/ical/c_61469fdd605944c6ecdd1a9251ec0c354ae0597978812eff4627662583d0f046%40group.calendar.google.com/public/basic.ics";
+const ICS_URLS = [SCHEDULES_CALENDAR, EVENTS_CALENDAR, ACADEMY_CALENDAR];
+
+// The school runs on Pacific time; academy events are stored as UTC instants
+// or in a named zone, so read them in Pacific.
+const ACADEMY_ZONE = "America/Los_Angeles";
 
 // Matches summaries that mean "no instruction today" on the events calendar,
 // which is otherwise full of unrelated notices (meetings, concerts, etc.).
@@ -34,6 +46,92 @@ const NO_SCHOOL_PATTERN = /no school|district closed|no students/i;
 // "Spirit Week" or "AP Testing" span several days but are normal school days.
 const MULTI_DAY_OFF_PATTERN =
   /no school|district closed|no students|break|holiday|recess/i;
+
+// Bell-schedule rows that are homeroom periods rather than classes: rally,
+// testing (STAR, CAASPP, ...), and anything explicitly homeroom ("Consent
+// Assembly / Homeroom"). Academy rows are caught earlier and keep their
+// activity name.
+const HOMEROOM_ROW_PATTERN = /rally|homeroom|test|caaspp|elpac|sbac|\bstar\b/i;
+
+// The academy calendar marks days with no academy at all.
+const NO_ACADEMY_PATTERN = /^\s*no\s+academy/i;
+
+// Office hours is the academy block's default mode; only show it as the label
+// when the calendar explicitly says so.
+const OFFICE_HOURS_PATTERN = /office\s*(?:hours?|hrs?)\b/i;
+
+// "Homeroom/Consent" -> "Consent", "Office Hours" -> "", so a mode word never
+// doubles as the subheading.
+function stripModeWords(text: string): string {
+  let result = text;
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(
+        /^(?:office\s*(?:hours?|hrs?)|homeroom)\s*(?:[/+&,.~-]\s*)?/i,
+        "",
+      )
+      .trim();
+  } while (result !== previous);
+  return result;
+}
+
+// The detail a bell-schedule block's source name contributes as a subheading:
+// "Testing/Academy" -> "Testing", "Consent Assembly / Homeroom" -> "Consent
+// Assembly", so the label never repeats the mode word it sits under.
+function homeroomDetail(sourceName: string): string {
+  const cleaned = stripModeWords(
+    sourceName
+      .replace(/\bacademy\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^[-–—:/\s]+/, "")
+      .replace(/[-–—:/\s]+$/, "")
+      .trim(),
+  );
+  return (
+    cleaned
+      .replace(
+        /\s*[-–—:/+&,.~\s]+(?:office\s*(?:hours?|hrs?)|homeroom)\s*$/i,
+        "",
+      )
+      .trim() || cleaned
+  );
+}
+
+// The academy block is labeled either "Academy - Office Hours" or
+// "Academy - Homeroom"; whatever the day is actually doing rides along as the
+// subheading.
+function parseAcademyLabel(
+  summary: string,
+  description: string,
+): { name: string; subheading?: string } {
+  const afterLabel =
+    summary.match(/^\s*academy\s*[-–—:]?\s*(.*)$/i)?.[1] ?? summary;
+  const activity = stripModeWords(
+    afterLabel
+      .replace(/\bacademy\b/gi, "")
+      .replace(/\s+/g, " ")
+      .replace(/^[-–—:/\s]+/, "")
+      .replace(/[-–—:/\s]+$/, "")
+      .trim(),
+  );
+  // The summary wins when it names the mode: "Academy - Homeroom/Consent" is
+  // a homeroom block even though its description mentions office hours.
+  const summarySaysHomeroom = /homeroom/i.test(summary);
+  const summarySaysOfficeHours = OFFICE_HOURS_PATTERN.test(summary);
+  const mentionsOfficeHours =
+    summarySaysOfficeHours || OFFICE_HOURS_PATTERN.test(description);
+  // Nothing to go on ("Academy" with no description) keeps the default label.
+  const hasDetails = activity !== "" || description.trim() !== "";
+  const isOfficeHours =
+    summarySaysOfficeHours ||
+    (!summarySaysHomeroom && (mentionsOfficeHours || !hasDetails));
+  return {
+    name: isOfficeHours ? DEFAULT_ACADEMY_NAME : ACADEMY_HOMEROOM_NAME,
+    subheading: activity || undefined,
+  };
+}
 
 // Strips the "no school"/"district closed" qualifiers for display.
 function cleanMessage(summary: string): string {
@@ -113,11 +211,12 @@ async function fetchAndParseIcs(): Promise<IcsRow[]> {
       for (const vevent of vevents) {
         const event = new ICAL.Event(vevent);
         events.push({
-          summary: event.summary,
-          description: event.description,
+          // ical.js returns null for absent properties.
+          summary: event.summary ?? "",
+          description: event.description ?? "",
           startDate: event.startDate.toJSDate(),
           endDate: event.endDate.toJSDate(),
-          location: event.location,
+          location: event.location ?? "",
           uid: event.uid,
           source,
         });
@@ -155,8 +254,9 @@ async function getOverridesFromIcs(ics: IcsRow[]) {
     const spanDays = daySpan(event.startDate, event.endDate);
 
     if (spanDays <= 1) {
-      // The events calendar's single-day notices are handled separately below.
-      if (event.source === EVENTS_CALENDAR) continue;
+      // Only the bell-schedule calendar defines days' periods; the events and
+      // academy calendars are handled separately below.
+      if (event.source !== SCHEDULES_CALENDAR) continue;
       // Skip the recurring routine bell-schedule events; only overrides count.
       const routineSummary = dayToSummary[event.startDate.getDay()]?.trim();
       if (event.summary.trim() !== routineSummary) {
@@ -285,6 +385,16 @@ async function getOverridesFromIcs(ics: IcsRow[]) {
             );
           } else if (period.name.startsWith("Academy")) {
             periods.push(academyPeriod(startTime, endTime));
+          } else if (HOMEROOM_ROW_PATTERN.test(period.name)) {
+            // Rally/testing/assembly blocks read like every other homeroom
+            // block, with what the bell schedule called them as the detail.
+            const detail = homeroomDetail(period.name);
+            periods.push(
+              homeroomPeriod(period.name, startTime, endTime, {
+                displayName: ACADEMY_HOMEROOM_NAME,
+                subheading: detail || period.name,
+              }),
+            );
           } else if (period.name.startsWith("Lunch")) {
             periods.push(lunchPeriod(startTime, endTime));
           } else if (period.name.startsWith("Brunch")) {
@@ -390,7 +500,112 @@ async function getOverridesFromIcs(ics: IcsRow[]) {
       dayOverrides[date] = { message, periods: [] };
     }
   }
+  applyAcademyEvents(ics, dayOverrides);
   return dayOverrides;
+}
+
+// The academy calendar tells us what each academy block is ("Academy -
+// Office Hours") and, when it differs from the bell schedule, when it runs.
+// It can also put academy on days whose schedule has no academy block at all
+// (rally/assembly days), where the matching block becomes a homeroom period.
+function applyAcademyEvents(
+  ics: IcsRow[],
+  dayOverrides: Record<string, DailySchedule>,
+) {
+  const eventsByDate = new Map<string, IcsRow[]>();
+  for (const event of ics) {
+    if (event.source !== ACADEMY_CALENDAR) continue;
+    if (NO_ACADEMY_PATTERN.test(event.summary)) continue;
+    const date = toIsoDate(event.startDate);
+    const events = eventsByDate.get(date);
+    if (events) {
+      events.push(event);
+    } else {
+      eventsByDate.set(date, [event]);
+    }
+  }
+
+  for (const [date, events] of eventsByDate) {
+    const day = DateTime.fromISO(date);
+    const template =
+      day.weekday <= 5
+        ? defaultSchedule[day.weekday as WeekdayNumbers]
+        : undefined;
+    // Days off (empty periods, from either source) don't get academy blocks.
+    const base = dayOverrides[date] ?? template;
+    if (!base || base.periods.length === 0) continue;
+
+    const schedule: DailySchedule = {
+      ...base,
+      periods: [...base.periods],
+    };
+    for (const event of events) {
+      applyAcademyEvent(event, schedule);
+    }
+    dayOverrides[date] = schedule;
+  }
+}
+
+function applyAcademyEvent(event: IcsRow, schedule: DailySchedule) {
+  // Re-express the event's span as a time of day so it lines up with the
+  // hour/minute-based intervals everywhere else (transformScheduleToDate
+  // re-dates them per day).
+  const dayTime = (dt: DateTime) => DateTime.fromISO(dt.toFormat("HH:mm:ss"));
+  const span = Interval.fromDateTimes(
+    dayTime(DateTime.fromJSDate(event.startDate, { zone: ACADEMY_ZONE })),
+    dayTime(DateTime.fromJSDate(event.endDate, { zone: ACADEMY_ZONE })),
+  );
+  if (!span.isValid || span.isEmpty()) return;
+
+  // Prefer the visible period that overlaps the event the most.
+  let matchIndex = -1;
+  let matchOverlap = 0;
+  schedule.periods.forEach((period, index) => {
+    if (period.type === "passing") return;
+    const overlap = period.interval.intersection(span);
+    if (!overlap) return;
+    const length = overlap.length("milliseconds");
+    if (length > matchOverlap) {
+      matchOverlap = length;
+      matchIndex = index;
+    }
+  });
+
+  if (matchIndex >= 0) {
+    const matched = schedule.periods[matchIndex];
+    if (matched.type === "passing") return;
+    const label = parseAcademyLabel(event.summary, event.description);
+    // Rally/testing/assembly blocks keep the bell schedule's times; academy
+    // blocks take the calendar's. (Academy blocks are the ones built with the
+    // "academy" id; every homeroom block is now labeled "Academy - ...", so the
+    // name can't tell them apart.)
+    const isAcademyBlock =
+      matched.type === "homeroom" && matched.id === "academy";
+    schedule.periods[matchIndex] = {
+      ...matched,
+      type: "homeroom",
+      name: label.name,
+      subheading: label.subheading,
+      interval: isAcademyBlock ? span : matched.interval,
+    };
+    return;
+  }
+
+  // No block to attach to — the academy block still happens, at the
+  // calendar's time.
+  const label = parseAcademyLabel(event.summary, event.description);
+  schedule.periods.push(
+    academyPeriod(
+      span.start!.toFormat("HH:mm:ss"),
+      span.end!.toFormat("HH:mm:ss"),
+      label.name,
+      label.subheading,
+    ),
+  );
+  schedule.periods.sort(
+    (a, b) =>
+      (a.interval.start?.toMillis() ?? 0) - (b.interval.start?.toMillis() ?? 0),
+  );
 }
 
 const dayToSummary: Record<number, string> = {
