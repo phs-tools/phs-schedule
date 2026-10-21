@@ -24,8 +24,9 @@ import { messageOverrides } from "./day-overrides";
 
 // The bell-schedule calendar carries the special single-day schedules; the
 // events calendar carries breaks and no-school days; the academy calendar
-// names what happens during the academy/homeroom block. None alone is
-// complete, so all three are fetched and merged.
+// names what happens during the academy/homeroom block. These three define
+// what happens in school, so they're fetched strictly — any failure falls
+// back to the last good parse.
 const SCHEDULES_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_30d5a2c1a8f1c82ef97ae6a5339f97aee29fcd9c09fcd30a6c738022fff30753%40group.calendar.google.com/public/basic.ics";
 const EVENTS_CALENDAR =
@@ -33,6 +34,15 @@ const EVENTS_CALENDAR =
 const ACADEMY_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_61469fdd605944c6ecdd1a9251ec0c354ae0597978812eff4627662583d0f046%40group.calendar.google.com/public/basic.ics";
 const ICS_URLS = [SCHEDULES_CALENDAR, EVENTS_CALENDAR, ACADEMY_CALENDAR];
+
+// The food-service calendars have the day's lunch and brunch. They're a
+// third-party site, so they're fetched separately and tolerantly: an outage
+// there must only cost the menus, never the day's schedule.
+const FOOD_SERVICE_URL =
+  "https://www.piedmont.k12.ca.us/fs/calendar-manager/events.ics?calendar_ids=";
+const LUNCH_CALENDAR = `${FOOD_SERVICE_URL}7`;
+const BRUNCH_CALENDAR = `${FOOD_SERVICE_URL}8`;
+const FOOD_ICS_URLS = [LUNCH_CALENDAR, BRUNCH_CALENDAR];
 
 // The school runs on Pacific time; academy events are stored as UTC instants
 // or in a named zone, so read them in Pacific.
@@ -133,6 +143,107 @@ function parseAcademyLabel(
   };
 }
 
+// The food-service feeds list the day's special with the always-available
+// items ("Pepperoni or Cheese Pizza", "Fresh Fruit", "Salad Bar", "2 Kinds of
+// Milk") jammed onto the end with no separator, and puts PHS and PMS side by
+// side on specialty pizza days. Keep just what PHS is actually being served.
+// (Lunch events carry this in DESCRIPTION; brunch events in SUMMARY.)
+const ALWAYS_AVAILABLE_PATTERN =
+  /pepperoni or cheese pizz|fresh fruit|salad bar|2 kinds of milk/i;
+
+// "Non-School Day", "Veteran's Day Holiday", "Thanksgiving Break" — days the
+// menu feeds use to mark that there's nothing served. Matched only at the end
+// of the value so a meal that merely mentions a holiday isn't dropped.
+const NO_FOOD_PATTERN = /^non[-\s]?school day$|\b(holiday|break|recess)$/i;
+
+function parseFoodMenu(raw: string): string | null {
+  // ical.js unescapes the ICS text escapes itself, but the feed writes HTML
+  // entities for its punctuation.
+  const text = raw
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || NO_FOOD_PATTERN.test(text)) return null;
+
+  const phsOnly = text.match(/^\s*PHS:\s*(.*?)\s*PMS:/i)?.[1];
+  const permanentStart = text.search(ALWAYS_AVAILABLE_PATTERN);
+  const menu =
+    phsOnly ??
+    (permanentStart >= 0 ? text.slice(0, permanentStart) : text).trim();
+  // Only the first entree: "Chicken Tenders or Veggie Nuggets, ..." ->
+  // "Chicken Tenders", "Mac & Cheese w/ Roasted Broccoli" -> "Mac & Cheese",
+  // 'Specialty Pizza Day, "Chef's Special"' -> "Specialty Pizza Day",
+  // "Cereal Day (Scooters, Cheerios, ...)" -> "Cereal Day".
+  const firstItemEnd = menu.search(/\s+or\s|\s*w\/|,|\(/i);
+  return (
+    (firstItemEnd >= 0 ? menu.slice(0, firstItemEnd) : menu)
+      .replace(/[\s,;:-]+$/, "")
+      .trim() || null
+  );
+}
+
+// The day's food: lunch, e.g. "Mac & Cheese"; brunch, e.g. "Zucchini Bread".
+type DayMenus = { lunch?: string; brunch?: string };
+
+let cachedFoodMenus: Record<string, DayMenus> | null = null;
+let foodMenusCacheTime = 0;
+let foodMenusPromise: Promise<Record<string, DayMenus>> | null = null;
+const FOOD_MENUS_CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+// After a failed fetch, don't make every page wait on a dead feed, but retry
+// well before the normal TTL in case it recovers.
+const FOOD_MENUS_RETRY_MS = 5 * 60 * 1000; // 5 minutes
+
+async function loadFoodMenus(): Promise<Record<string, DayMenus>> {
+  const now = Date.now();
+  const ics = await fetchFoodIcs();
+  if (!ics) {
+    cachedFoodMenus ??= {};
+    foodMenusCacheTime = now - FOOD_MENUS_CACHE_TTL_MS + FOOD_MENUS_RETRY_MS;
+    return cachedFoodMenus;
+  }
+
+  const menus: Record<string, DayMenus> = {};
+  for (const event of ics) {
+    // Lunch events put the menu in DESCRIPTION, brunch in SUMMARY.
+    const raw =
+      event.source === LUNCH_CALENDAR
+        ? event.description
+        : event.source === BRUNCH_CALENDAR
+          ? event.summary
+          : null;
+    if (raw === null) continue;
+    const menu = parseFoodMenu(raw);
+    if (!menu) continue;
+    const date = toIsoDate(event.startDate);
+    menus[date] = {
+      ...menus[date],
+      [event.source === LUNCH_CALENDAR ? "lunch" : "brunch"]: menu,
+    };
+  }
+  cachedFoodMenus = menus;
+  foodMenusCacheTime = now;
+  return menus;
+}
+
+export function getFoodMenus(): Promise<Record<string, DayMenus>> {
+  const now = Date.now();
+  if (cachedFoodMenus && now - foodMenusCacheTime < FOOD_MENUS_CACHE_TTL_MS) {
+    return Promise.resolve(cachedFoodMenus);
+  }
+  // Share one fetch between the concurrent calls a week render makes.
+  if (!foodMenusPromise) {
+    foodMenusPromise = loadFoodMenus().finally(() => {
+      foodMenusPromise = null;
+    });
+  }
+  return foodMenusPromise;
+}
+
 // Strips the "no school"/"district closed" qualifiers for display.
 function cleanMessage(summary: string): string {
   return summary
@@ -173,20 +284,62 @@ const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 let cachedIcsTextHash: string | null = null;
 let cachedParsedResult: IcsRow[] | null = null;
 
+// A slow third-party feed must not stall a page render.
+const FETCH_TIMEOUT_MS = 10_000;
+
+async function fetchIcsText(url: string): Promise<string> {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+  return response.text();
+}
+
+function parseIcsTexts(feeds: { source: string; text: string }[]): IcsRow[] {
+  const events: IcsRow[] = [];
+  for (const { source, text } of feeds) {
+    const jCalData = ICAL.parse(text);
+    const comp = new ICAL.Component(jCalData);
+    const vevents = comp.getAllSubcomponents("vevent");
+
+    for (const vevent of vevents) {
+      const event = new ICAL.Event(vevent);
+      events.push({
+        // ical.js returns null for absent properties.
+        summary: event.summary ?? "",
+        description: event.description ?? "",
+        startDate: event.startDate.toJSDate(),
+        endDate: event.endDate.toJSDate(),
+        location: event.location ?? "",
+        uid: event.uid,
+        source,
+      });
+    }
+  }
+
+  // in order
+  events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+  // only dates this school year — compared as calendar dates, since date-only
+  // events are local-midnight and an instant comparison drops the first day of
+  // the year on UTC servers.
+  const start = SCHOOL_YEAR_START.toISODate()!;
+  const end = SCHOOL_YEAR_END.toISODate()!;
+  return events.filter((event) => {
+    const date = toIsoDate(event.startDate);
+    return date >= start && date <= end;
+  });
+}
+
 async function fetchAndParseIcs(): Promise<IcsRow[]> {
   const now = Date.now();
   if (cachedParsedResult && now - cacheTime < CACHE_TTL_MS) {
     return cachedParsedResult;
   }
   try {
-    const responses = await Promise.all(ICS_URLS.map((url) => fetch(url)));
-    for (const response of responses) {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-    }
-
-    const texts = await Promise.all(responses.map((r) => r.text()));
+    const texts = await Promise.all(ICS_URLS.map(fetchIcsText));
     const textHash = crypto
       .createHash("sha256")
       .update(texts.join("\n"))
@@ -201,36 +354,8 @@ async function fetchAndParseIcs(): Promise<IcsRow[]> {
       return cachedParsedResult;
     }
 
-    const events: IcsRow[] = [];
-    texts.forEach((icsText, index) => {
-      const source = ICS_URLS[index];
-      const jCalData = ICAL.parse(icsText);
-      const comp = new ICAL.Component(jCalData);
-      const vevents = comp.getAllSubcomponents("vevent");
-
-      for (const vevent of vevents) {
-        const event = new ICAL.Event(vevent);
-        events.push({
-          // ical.js returns null for absent properties.
-          summary: event.summary ?? "",
-          description: event.description ?? "",
-          startDate: event.startDate.toJSDate(),
-          endDate: event.endDate.toJSDate(),
-          location: event.location ?? "",
-          uid: event.uid,
-          source,
-        });
-      }
-    });
-
-    // in order
-    events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-
-    // only dates this school year
-    const schoolYearEvents = events.filter(
-      (ev) =>
-        ev.startDate.getTime() >= SCHOOL_YEAR_START.toJSDate().getTime() &&
-        ev.startDate.getTime() <= SCHOOL_YEAR_END.toJSDate().getTime(),
+    const schoolYearEvents = parseIcsTexts(
+      ICS_URLS.map((source, index) => ({ source, text: texts[index] })),
     );
     cachedParsedResult = schoolYearEvents;
     cachedIcsTextHash = textHash;
@@ -242,6 +367,28 @@ async function fetchAndParseIcs(): Promise<IcsRow[]> {
       return cachedParsedResult;
     }
     throw error;
+  }
+}
+
+// Food menus are optional: fetch each feed independently and use whichever
+// ones answer, so a district-site outage never touches the school schedule.
+async function fetchFoodIcs(): Promise<IcsRow[] | null> {
+  const results = await Promise.allSettled(FOOD_ICS_URLS.map(fetchIcsText));
+  const feeds: { source: string; text: string }[] = [];
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      feeds.push({ source: FOOD_ICS_URLS[index], text: result.value });
+    } else {
+      console.error("Failed to fetch a food menu feed:", result.reason);
+    }
+  });
+  if (feeds.length === 0) return null;
+
+  try {
+    return parseIcsTexts(feeds);
+  } catch (error) {
+    console.error("Failed to parse food menu feeds:", error);
+    return null;
   }
 }
 

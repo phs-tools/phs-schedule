@@ -1,7 +1,7 @@
 import "./zone";
 import { Interval, DateTime, WeekdayNumbers } from "luxon";
 import { emptyDay, defaultSchedule } from "./schedule-templates";
-import { generateDayOverrides } from "./ics-import";
+import { generateDayOverrides, getFoodMenus } from "./ics-import";
 
 let cachedOverrides: Record<string, DailySchedule> | null = null;
 let overridesCacheTime: number = 0;
@@ -79,17 +79,48 @@ export async function getScheduleForDay(day: DateTime): Promise<DailySchedule> {
   // If the day is in the dayOverrides, use that
   if (day.toFormat("yyyy-LL-dd") in dayOverrides) {
     return transformScheduleToDate(
-      dayOverrides[day.toFormat("yyyy-LL-dd")],
+      await applyFoodMenus(
+        dayOverrides[day.toFormat("yyyy-LL-dd")],
+        day.toFormat("yyyy-LL-dd"),
+      ),
       day,
     );
   }
 
   return transformScheduleToDate(
-    day.weekday in defaultSchedule
-      ? defaultSchedule[day.weekday as WeekdayNumbers]
-      : emptyDay,
+    await applyFoodMenus(
+      day.weekday in defaultSchedule
+        ? defaultSchedule[day.weekday as WeekdayNumbers]
+        : emptyDay,
+      day.toFormat("yyyy-LL-dd"),
+    ),
     day,
   );
+}
+
+// The food-service calendars know the day's lunch and brunch; show each under
+// its block, the same way the academy block shows its detail.
+async function applyFoodMenus(
+  schedule: DailySchedule,
+  dateKey: string,
+): Promise<DailySchedule> {
+  const menus = (await getFoodMenus())[dateKey];
+  if (!menus) return schedule;
+  return {
+    ...schedule,
+    periods: schedule.periods.map((period) => {
+      if (period.type === "passing") return period;
+      // Calendar imports occasionally misclassify the row as instructional
+      // ("LUNCH", "Brunch Advisory"), so match on the name as well as the id.
+      const menu =
+        period.id === "lunch" || /^lunch\b/i.test(period.name)
+          ? menus.lunch
+          : period.id === "brunch" || /^brunch\b/i.test(period.name)
+            ? menus.brunch
+            : undefined;
+      return menu ? { ...period, subheading: menu } : period;
+    }),
+  };
 }
 
 /// Returns a `DailySchedule` where each interval has the same time of day but uses the given date
