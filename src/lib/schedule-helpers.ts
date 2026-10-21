@@ -1,3 +1,4 @@
+import "./zone";
 import { Interval, DateTime } from "luxon";
 import { DailySchedule, Period } from "./schedule";
 import { emptyDay } from "./schedule-templates";

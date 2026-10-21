@@ -1,3 +1,4 @@
+import "./zone";
 import ICAL from "ical.js";
 import crypto from "crypto";
 import { DateTime, Interval, WeekdayNumbers } from "luxon";

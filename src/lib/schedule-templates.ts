@@ -1,3 +1,4 @@
+import "./zone";
 import { Interval, DateTime, WeekdayNumbers } from "luxon";
 import { Period, DailySchedule } from "./schedule";
 

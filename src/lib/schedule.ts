@@ -1,12 +1,11 @@
-import { Interval, DateTime, WeekdayNumbers, Settings } from "luxon";
+import "./zone";
+import { Interval, DateTime, WeekdayNumbers } from "luxon";
 import { emptyDay, defaultSchedule } from "./schedule-templates";
 import { generateDayOverrides } from "./ics-import";
 
 let cachedOverrides: Record<string, DailySchedule> | null = null;
 let overridesCacheTime: number = 0;
 const OVERRIDES_CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-
-Settings.defaultZone = "America/Los_Angeles";
 
 export type VisiblePeriod = {
   interval: Interval;
