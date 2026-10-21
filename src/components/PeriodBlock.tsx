@@ -88,7 +88,6 @@ export function PeriodBlock({
 
   // Breaks (Lunch, Brunch) show name and time together, any menu below.
   const isBreak = period.type === "break";
-  const timeRange = `${period.interval.start?.toFormat("h:mm")} - ${period.interval.end?.toFormat("h:mm")}`;
 
   if (period.type === "passing")
     return (
@@ -104,6 +103,8 @@ export function PeriodBlock({
         className={cn(!temporalSizing && "h-3")}
       />
     );
+
+  const timeRange = `${period.interval.start?.toFormat("h:mm")} - ${period.interval.end?.toFormat("h:mm")}`;
 
   return (
     <div
