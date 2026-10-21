@@ -24,15 +24,26 @@ import { messageOverrides } from "./day-overrides";
 
 // The bell-schedule calendar carries the special single-day schedules; the
 // events calendar carries breaks and no-school days; the academy calendar
-// names what happens during the academy/homeroom block. None alone is
-// complete, so all three are fetched and merged.
+// names what happens during the academy/homeroom block; the food-service
+// calendars have the day's lunch and brunch. None alone is complete, so all
+// five are fetched and merged.
 const SCHEDULES_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_30d5a2c1a8f1c82ef97ae6a5339f97aee29fcd9c09fcd30a6c738022fff30753%40group.calendar.google.com/public/basic.ics";
 const EVENTS_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_feedbfeaeb52412221c1a8e6cdfc43ee1e6e68e71a0d85c5d955bf48f0feea55%40group.calendar.google.com/public/basic.ics";
 const ACADEMY_CALENDAR =
   "https://calendar.google.com/calendar/ical/c_61469fdd605944c6ecdd1a9251ec0c354ae0597978812eff4627662583d0f046%40group.calendar.google.com/public/basic.ics";
-const ICS_URLS = [SCHEDULES_CALENDAR, EVENTS_CALENDAR, ACADEMY_CALENDAR];
+const LUNCH_CALENDAR =
+  "https://www.piedmont.k12.ca.us/fs/calendar-manager/events.ics?calendar_ids=7";
+const BRUNCH_CALENDAR =
+  "https://www.piedmont.k12.ca.us/fs/calendar-manager/events.ics?calendar_ids=8";
+const ICS_URLS = [
+  SCHEDULES_CALENDAR,
+  EVENTS_CALENDAR,
+  ACADEMY_CALENDAR,
+  LUNCH_CALENDAR,
+  BRUNCH_CALENDAR,
+];
 
 // The school runs on Pacific time; academy events are stored as UTC instants
 // or in a named zone, so read them in Pacific.
@@ -131,6 +142,87 @@ function parseAcademyLabel(
     name: isOfficeHours ? DEFAULT_ACADEMY_NAME : ACADEMY_HOMEROOM_NAME,
     subheading: activity || undefined,
   };
+}
+
+// The food-service feeds list the day's special with the always-available
+// items ("Pepperoni or Cheese Pizza", "Fresh Fruit", "Salad Bar", "2 Kinds of
+// Milk") jammed onto the end with no separator, and puts PHS and PMS side by
+// side on specialty pizza days. Keep just what PHS is actually being served.
+// (Lunch events carry this in DESCRIPTION; brunch events in SUMMARY.)
+const ALWAYS_AVAILABLE_PATTERN =
+  /pepperoni or cheese pizz|fresh fruit|salad bar|2 kinds of milk/i;
+
+// "Non-School Day", "Veteran's Day Holiday", "Thanksgiving Break" — days the
+// menu feeds use to mark that there's nothing served.
+const NO_FOOD_PATTERN = /non[-\s]?school day|holiday|\bbreak\b/i;
+
+function parseFoodMenu(raw: string): string | null {
+  // ical.js unescapes the ICS text escapes itself, but the feed writes HTML
+  // entities for its punctuation.
+  const text = raw
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || NO_FOOD_PATTERN.test(text)) return null;
+
+  const phsOnly = text.match(/^\s*PHS:\s*(.*?)\s*PMS:/i)?.[1];
+  const permanentStart = text.search(ALWAYS_AVAILABLE_PATTERN);
+  const menu =
+    phsOnly ??
+    (permanentStart >= 0 ? text.slice(0, permanentStart) : text).trim();
+  // Only the first entree: "Chicken Tenders or Veggie Nuggets, ..." ->
+  // "Chicken Tenders", "Mac & Cheese w/ Roasted Broccoli" -> "Mac & Cheese",
+  // 'Specialty Pizza Day, "Chef's Special"' -> "Specialty Pizza Day",
+  // "Cereal Day (Scooters, Cheerios, ...)" -> "Cereal Day".
+  const firstItemEnd = menu.search(/\s+or\s|\s*w\/|,|\(/i);
+  return (
+    (firstItemEnd >= 0 ? menu.slice(0, firstItemEnd) : menu)
+      .replace(/[\s,;:-]+$/, "")
+      .trim() || null
+  );
+}
+
+// The day's food: lunch, e.g. "Mac & Cheese"; brunch, e.g. "Zucchini Bread".
+export type DayMenus = { lunch?: string; brunch?: string };
+
+let foodMenusPromise: Promise<Record<string, DayMenus>> | null = null;
+
+export function getFoodMenus(): Promise<Record<string, DayMenus>> {
+  if (!foodMenusPromise) {
+    foodMenusPromise = fetchAndParseIcs()
+      .then((ics) => {
+        const menus: Record<string, DayMenus> = {};
+        for (const event of ics) {
+          // Lunch events put the menu in DESCRIPTION, brunch in SUMMARY.
+          const raw =
+            event.source === LUNCH_CALENDAR
+              ? event.description
+              : event.source === BRUNCH_CALENDAR
+                ? event.summary
+                : null;
+          if (raw === null) continue;
+          const menu = parseFoodMenu(raw);
+          if (!menu) continue;
+          const date = toIsoDate(event.startDate);
+          menus[date] = {
+            ...menus[date],
+            [event.source === LUNCH_CALENDAR ? "lunch" : "brunch"]: menu,
+          };
+        }
+        return menus;
+      })
+      .catch((error) => {
+        console.error("Failed to load lunch menus:", error);
+        foodMenusPromise = null;
+        return {};
+      });
+  }
+  return foodMenusPromise;
 }
 
 // Strips the "no school"/"district closed" qualifiers for display.

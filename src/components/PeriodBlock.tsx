@@ -86,6 +86,10 @@ export function PeriodBlock({
   // on them either way. Passing periods are invisible spacers and never had one.
   const showProgress = isClassLike && !/lunch|brunch/i.test(period.name ?? "");
 
+  // Breaks (Lunch, Brunch) show name and time together, any menu below.
+  const isBreak = period.type === "break";
+  const timeRange = `${period.interval.start?.toFormat("h:mm")} - ${period.interval.end?.toFormat("h:mm")}`;
+
   if (period.type === "passing")
     return (
       <div
@@ -134,18 +138,29 @@ export function PeriodBlock({
           ref={contentRef}
           className={cn(
             "flex flex-col items-start justify-center",
-            period.type === "break" &&
-              "flex w-auto flex-row items-center gap-2",
+            // Breaks center up: name and time on one line, menu under it.
+            isBreak && "items-center text-center",
           )}
         >
-          <h2 className="font-medium">{period.name}</h2>
-          {period.subheading && (
-            <p className="text-xs opacity-70">{period.subheading}</p>
+          {isBreak ? (
+            <>
+              <div className="flex flex-row items-baseline gap-2">
+                <h2 className="font-medium">{period.name}</h2>
+                <p>{timeRange}</p>
+              </div>
+              {period.subheading && (
+                <p className="text-xs opacity-70">{period.subheading}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="font-medium">{period.name}</h2>
+              {period.subheading && (
+                <p className="text-xs opacity-70">{period.subheading}</p>
+              )}
+              <p>{timeRange}</p>
+            </>
           )}
-          <p>
-            {period.interval.start?.toFormat("h:mm")} -{" "}
-            {period.interval.end?.toFormat("h:mm")}
-          </p>
         </div>
       </div>
     </div>
