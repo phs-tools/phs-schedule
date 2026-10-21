@@ -4,7 +4,16 @@ import { Period, PortablePeriod, portableToInterval } from "@/lib/schedule";
 import { getNow } from "@/lib/now";
 import { cn } from "@/lib/utils";
 import { DateTime } from "luxon";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+// Font sizes PeriodBlock steps through when a title doesn't fit its box.
+const SHRINK_CLASSES = [
+  "text-sm",
+  "text-xs",
+  "text-[0.65rem]",
+  "text-[0.55rem]",
+];
+const MAX_SHRINK = SHRINK_CLASSES.length - 1;
 
 export function PeriodBlock({
   portablePeriod,
@@ -20,6 +29,14 @@ export function PeriodBlock({
 
   const [now, setNow] = useState<DateTime<boolean>>(DateTime.now());
 
+  // Long titles in short boxes (e.g. "Evacuation Drill Review in 6th" in a
+  // ten-minute block) spill past the border; step the text down until it fits.
+  // The count is keyed to the title so a new title starts over from full size.
+  const fitKey = `${period.type === "passing" ? "" : `${period.name}|${period.subheading}`}|${portablePeriod.interval.start}-${portablePeriod.interval.end}|${!!temporalSizing}`;
+  const [fit, setFit] = useState({ key: fitKey, shrink: 0 });
+  const shrink = fit.key === fitKey ? fit.shrink : 0;
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // Re-read once on mount so a stored time override applies immediately
     // (getNow falls back to the real clock on the server).
@@ -31,6 +48,31 @@ export function PeriodBlock({
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    // Shrink-only (shrinking further is always safe, so this converges and
+    // can't oscillate). A ResizeObserver covers resizes and late layout.
+    const check = () => {
+      const overflows =
+        el.scrollHeight > el.clientHeight + 1 ||
+        el.scrollWidth > el.clientWidth + 1;
+      if (overflows && shrink < MAX_SHRINK) {
+        setFit({ key: fitKey, shrink: shrink + 1 });
+      }
+    };
+
+    const frame = requestAnimationFrame(check);
+    const observer = new ResizeObserver(() => requestAnimationFrame(check));
+    observer.observe(el);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [shrink, fitKey]);
 
   const hasHappened = period.interval.isBefore(now);
   const isHappening = period.interval.contains(now);
@@ -73,7 +115,8 @@ export function PeriodBlock({
     >
       <div
         className={cn(
-          "flex flex-row items-stretch justify-stretch gap-2 px-3 text-sm transition duration-500",
+          "flex flex-row items-stretch justify-stretch gap-2 px-3 transition duration-500",
+          SHRINK_CLASSES[shrink],
           period.type === "break" && "justify-center",
           !temporalSizing && isClassLike && "p-3",
           isHappening && isClassLike && "pl-2",
@@ -88,6 +131,7 @@ export function PeriodBlock({
           />
         )}
         <div
+          ref={contentRef}
           className={cn(
             "flex flex-col items-start justify-center",
             period.type === "break" &&
@@ -95,6 +139,9 @@ export function PeriodBlock({
           )}
         >
           <h2 className="font-medium">{period.name}</h2>
+          {period.subheading && (
+            <p className="text-xs opacity-70">{period.subheading}</p>
+          )}
           <p>
             {period.interval.start?.toFormat("h:mm")} -{" "}
             {period.interval.end?.toFormat("h:mm")}

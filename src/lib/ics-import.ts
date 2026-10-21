@@ -9,7 +9,8 @@ import {
   lunchPeriod,
   passingPeriod,
   vacation,
-  DEFAULT_ACADEMY_ACTIVITY,
+  DEFAULT_ACADEMY_NAME,
+  ACADEMY_HOMEROOM_NAME,
 } from "./schedule-helpers";
 import {
   SCHOOL_YEAR_START,
@@ -46,24 +47,89 @@ const MULTI_DAY_OFF_PATTERN =
   /no school|district closed|no students|break|holiday|recess/i;
 
 // Bell-schedule rows that are homeroom periods rather than classes: rally,
-// testing, and anything explicitly homeroom ("Consent Assembly / Homeroom").
-// Academy rows are caught earlier and keep their activity name.
-const HOMEROOM_ROW_PATTERN = /rally|testing|homeroom/i;
+// testing (STAR, CAASPP, ...), and anything explicitly homeroom ("Consent
+// Assembly / Homeroom"). Academy rows are caught earlier and keep their
+// activity name.
+const HOMEROOM_ROW_PATTERN = /rally|homeroom|test|caaspp|elpac|sbac|\bstar\b/i;
 
 // The academy calendar marks days with no academy at all.
 const NO_ACADEMY_PATTERN = /^\s*no\s+academy/i;
 
-// "Academy - Office Hours" -> "Office Hours", "Academy: Homeroom" ->
-// "Homeroom", "Homeroom Academy" -> "Homeroom", plain "Academy" -> default.
-function parseAcademyActivity(summary: string): string {
+// Office hours is the academy block's default mode; only show it as the label
+// when the calendar explicitly says so.
+const OFFICE_HOURS_PATTERN = /office\s*(?:hours?|hrs?)\b/i;
+
+// "Homeroom/Consent" -> "Consent", "Office Hours" -> "", so a mode word never
+// doubles as the subheading.
+function stripModeWords(text: string): string {
+  let result = text;
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(
+        /^(?:office\s*(?:hours?|hrs?)|homeroom)\s*(?:[/+&,.~-]\s*)?/i,
+        "",
+      )
+      .trim();
+  } while (result !== previous);
+  return result;
+}
+
+// The detail a bell-schedule block's source name contributes as a subheading:
+// "Testing/Academy" -> "Testing", "Consent Assembly / Homeroom" -> "Consent
+// Assembly", so the label never repeats the mode word it sits under.
+function homeroomDetail(sourceName: string): string {
+  const cleaned = stripModeWords(
+    sourceName
+      .replace(/\bacademy\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^[-–—:/\s]+/, "")
+      .replace(/[-–—:/\s]+$/, "")
+      .trim(),
+  );
+  return (
+    cleaned
+      .replace(
+        /\s*[-–—:/+&,.~\s]+(?:office\s*(?:hours?|hrs?)|homeroom)\s*$/i,
+        "",
+      )
+      .trim() || cleaned
+  );
+}
+
+// The academy block is labeled either "Academy - Office Hours" or
+// "Academy - Homeroom"; whatever the day is actually doing rides along as the
+// subheading.
+function parseAcademyLabel(
+  summary: string,
+  description: string,
+): { name: string; subheading?: string } {
   const afterLabel =
     summary.match(/^\s*academy\s*[-–—:]?\s*(.*)$/i)?.[1] ?? summary;
-  const activity = afterLabel
-    .replace(/\bacademy\b/gi, "")
-    .replace(/^[-–—:/\s]+/, "")
-    .replace(/[-–—:/\s]+$/, "")
-    .trim();
-  return activity || DEFAULT_ACADEMY_ACTIVITY;
+  const activity = stripModeWords(
+    afterLabel
+      .replace(/\bacademy\b/gi, "")
+      .replace(/\s+/g, " ")
+      .replace(/^[-–—:/\s]+/, "")
+      .replace(/[-–—:/\s]+$/, "")
+      .trim(),
+  );
+  // The summary wins when it names the mode: "Academy - Homeroom/Consent" is
+  // a homeroom block even though its description mentions office hours.
+  const summarySaysHomeroom = /homeroom/i.test(summary);
+  const summarySaysOfficeHours = OFFICE_HOURS_PATTERN.test(summary);
+  const mentionsOfficeHours =
+    summarySaysOfficeHours || OFFICE_HOURS_PATTERN.test(description);
+  // Nothing to go on ("Academy" with no description) keeps the default label.
+  const hasDetails = activity !== "" || description.trim() !== "";
+  const isOfficeHours =
+    summarySaysOfficeHours ||
+    (!summarySaysHomeroom && (mentionsOfficeHours || !hasDetails));
+  return {
+    name: isOfficeHours ? DEFAULT_ACADEMY_NAME : ACADEMY_HOMEROOM_NAME,
+    subheading: activity || undefined,
+  };
 }
 
 // Strips the "no school"/"district closed" qualifiers for display.
@@ -144,11 +210,12 @@ async function fetchAndParseIcs(): Promise<IcsRow[]> {
       for (const vevent of vevents) {
         const event = new ICAL.Event(vevent);
         events.push({
-          summary: event.summary,
-          description: event.description,
+          // ical.js returns null for absent properties.
+          summary: event.summary ?? "",
+          description: event.description ?? "",
           startDate: event.startDate.toJSDate(),
           endDate: event.endDate.toJSDate(),
-          location: event.location,
+          location: event.location ?? "",
           uid: event.uid,
           source,
         });
@@ -318,8 +385,15 @@ async function getOverridesFromIcs(ics: IcsRow[]) {
           } else if (period.name.startsWith("Academy")) {
             periods.push(academyPeriod(startTime, endTime));
           } else if (HOMEROOM_ROW_PATTERN.test(period.name)) {
-            // Rally and testing blocks are homeroom periods; keep their names.
-            periods.push(homeroomPeriod(period.name, startTime, endTime));
+            // Rally/testing/assembly blocks read like every other homeroom
+            // block, with what the bell schedule called them as the detail.
+            const detail = homeroomDetail(period.name);
+            periods.push(
+              homeroomPeriod(period.name, startTime, endTime, {
+                displayName: ACADEMY_HOMEROOM_NAME,
+                subheading: detail || period.name,
+              }),
+            );
           } else if (period.name.startsWith("Lunch")) {
             periods.push(lunchPeriod(startTime, endTime));
           } else if (period.name.startsWith("Brunch")) {
@@ -499,28 +573,32 @@ function applyAcademyEvent(event: IcsRow, schedule: DailySchedule) {
   if (matchIndex >= 0) {
     const matched = schedule.periods[matchIndex];
     if (matched.type === "passing") return;
-    if (matched.type === "homeroom" && /^academy/i.test(matched.name)) {
-      // The calendar knows the activity and the real times for academy blocks.
-      schedule.periods[matchIndex] = {
-        ...matched,
-        name: `Academy - ${parseAcademyActivity(event.summary)}`,
-        interval: span,
-      };
-    } else {
-      // Rally/testing/assembly blocks belong to the bell schedule; only their
-      // type changes.
-      schedule.periods[matchIndex] = { ...matched, type: "homeroom" };
-    }
+    const label = parseAcademyLabel(event.summary, event.description);
+    // Rally/testing/assembly blocks keep the bell schedule's times; academy
+    // blocks take the calendar's. (Academy blocks are the ones built with the
+    // "academy" id; every homeroom block is now labeled "Academy - ...", so the
+    // name can't tell them apart.)
+    const isAcademyBlock =
+      matched.type === "homeroom" && matched.id === "academy";
+    schedule.periods[matchIndex] = {
+      ...matched,
+      type: "homeroom",
+      name: label.name,
+      subheading: label.subheading,
+      interval: isAcademyBlock ? span : matched.interval,
+    };
     return;
   }
 
   // No block to attach to — the academy block still happens, at the
   // calendar's time.
+  const label = parseAcademyLabel(event.summary, event.description);
   schedule.periods.push(
     academyPeriod(
       span.start!.toFormat("HH:mm:ss"),
       span.end!.toFormat("HH:mm:ss"),
-      parseAcademyActivity(event.summary),
+      label.name,
+      label.subheading,
     ),
   );
   schedule.periods.sort(

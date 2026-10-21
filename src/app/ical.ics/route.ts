@@ -74,7 +74,9 @@ export async function GET(request: Request) {
           period.type === "instructional" || period.type === "homeroom",
       )
       .map((period) => {
-        const periodName = period.name;
+        const periodName = period.subheading
+          ? `${period.name} (${period.subheading})`
+          : period.name;
         return {
           start: period.interval.start!.toMillis(),
           end: period.interval.end!.toMillis(),

@@ -15,6 +15,8 @@ export type VisiblePeriod = {
   // spend in their homeroom rather than in a class.
   type: "instructional" | "break" | "homeroom";
   name: string;
+  // A short detail line under the name (e.g. what an academy block is for).
+  subheading?: string;
 };
 
 export type InvisiblePeriod = {
