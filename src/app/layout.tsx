@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const barlow = Barlow({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 /*

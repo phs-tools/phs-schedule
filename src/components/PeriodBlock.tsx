@@ -27,7 +27,7 @@ export function PeriodBlock({
     interval: portableToInterval(portablePeriod.interval),
   };
 
-  const [now, setNow] = useState<DateTime<boolean>>(DateTime.now());
+  const [now, setNow] = useState<DateTime<boolean> | null>(null);
 
   // Long titles in short boxes (e.g. "Evacuation Drill Review in 6th" in a
   // ten-minute block) spill past the border; step the text down until it fits.
@@ -44,7 +44,7 @@ export function PeriodBlock({
 
     const interval = setInterval(() => {
       setNow(getNow());
-    }, 1000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -74,8 +74,8 @@ export function PeriodBlock({
     };
   }, [shrink, fitKey]);
 
-  const hasHappened = period.interval.isBefore(now);
-  const isHappening = period.interval.contains(now);
+  const hasHappened = now ? period.interval.isBefore(now) : false;
+  const isHappening = now ? period.interval.contains(now) : false;
 
   // Homeroom periods (academy, rally, testing) render like class periods.
   const isClassLike =
@@ -84,7 +84,8 @@ export function PeriodBlock({
   // Lunch/brunch are breaks, but calendar imports can misclassify them as
   // instructional ("LUNCH", "Brunch Advisory", ...). Never show a progress bar
   // on them either way. Passing periods are invisible spacers and never had one.
-  const showProgress = isClassLike && !/lunch|brunch/i.test(period.name ?? "");
+  const showProgress =
+    isClassLike && now && !/lunch|brunch/i.test(period.name ?? "");
 
   // Breaks (Lunch, Brunch) show name and time together, any menu below.
   const isBreak = period.type === "break";
@@ -127,7 +128,7 @@ export function PeriodBlock({
           isHappening && isClassLike && "pl-2",
         )}
       >
-        {showProgress && (
+        {showProgress && now && (
           <ProgressIndicator
             progress={
               (now.toMillis() - (period.interval.start?.toMillis() ?? 0)) /

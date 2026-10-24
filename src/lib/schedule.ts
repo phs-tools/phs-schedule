@@ -5,7 +5,7 @@ import { generateDayOverrides, getFoodMenus } from "./ics-import";
 
 let cachedOverrides: Record<string, DailySchedule> | null = null;
 let overridesCacheTime: number = 0;
-const OVERRIDES_CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const OVERRIDES_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export type VisiblePeriod = {
   interval: Interval;
@@ -58,6 +58,29 @@ export type DailySchedule = {
 export const SCHOOL_YEAR_START = DateTime.fromISO("2026-08-10");
 export const SCHOOL_YEAR_END = DateTime.fromISO("2027-06-04");
 
+/// Every date in the school year, for `generateStaticParams`. Pages are built
+/// ahead of time so a first visit never waits on the calendar feeds.
+export function schoolYearDates(): string[] {
+  const dates: string[] = [];
+  for (
+    let day = SCHOOL_YEAR_START;
+    day <= SCHOOL_YEAR_END;
+    day = day.plus({ days: 1 })
+  ) {
+    dates.push(day.toFormat("yyyy-LL-dd"));
+  }
+  return dates;
+}
+
+async function getDayOverrides(): Promise<Record<string, DailySchedule>> {
+  const now = Date.now();
+  if (!cachedOverrides || now - overridesCacheTime > OVERRIDES_CACHE_TTL_MS) {
+    cachedOverrides = (await generateDayOverrides()) ?? {};
+    overridesCacheTime = now;
+  }
+  return cachedOverrides;
+}
+
 export async function getScheduleForDay(day: DateTime): Promise<DailySchedule> {
   // No school if it's before the start of the school year
   if (day < SCHOOL_YEAR_START) {
@@ -69,42 +92,37 @@ export async function getScheduleForDay(day: DateTime): Promise<DailySchedule> {
     return transformScheduleToDate(emptyDay, day);
   }
 
-  const now = Date.now();
-  if (!cachedOverrides || now - overridesCacheTime > OVERRIDES_CACHE_TTL_MS) {
-    cachedOverrides = (await generateDayOverrides()) ?? {};
-    overridesCacheTime = now;
-  }
-  const dayOverrides = cachedOverrides;
+  const dateKey = day.toFormat("yyyy-LL-dd");
+
+  // The override calendars and the food menus are two independent network
+  // round trips; start them together so a cold render pays for one, not two.
+  const [dayOverrides, foodMenus] = await Promise.all([
+    getDayOverrides(),
+    getFoodMenus(),
+  ]);
 
   // If the day is in the dayOverrides, use that
-  if (day.toFormat("yyyy-LL-dd") in dayOverrides) {
-    return transformScheduleToDate(
-      await applyFoodMenus(
-        dayOverrides[day.toFormat("yyyy-LL-dd")],
-        day.toFormat("yyyy-LL-dd"),
-      ),
-      day,
-    );
-  }
+  const schedule =
+    dateKey in dayOverrides
+      ? dayOverrides[dateKey]
+      : day.weekday in defaultSchedule
+        ? defaultSchedule[day.weekday as WeekdayNumbers]
+        : emptyDay;
 
   return transformScheduleToDate(
-    await applyFoodMenus(
-      day.weekday in defaultSchedule
-        ? defaultSchedule[day.weekday as WeekdayNumbers]
-        : emptyDay,
-      day.toFormat("yyyy-LL-dd"),
-    ),
+    applyFoodMenus(schedule, dateKey, foodMenus),
     day,
   );
 }
 
 // The food-service calendars know the day's lunch and brunch; show each under
 // its block, the same way the academy block shows its detail.
-async function applyFoodMenus(
+function applyFoodMenus(
   schedule: DailySchedule,
   dateKey: string,
-): Promise<DailySchedule> {
-  const menus = (await getFoodMenus())[dateKey];
+  allMenus: Awaited<ReturnType<typeof getFoodMenus>>,
+): DailySchedule {
+  const menus = allMenus[dateKey];
   if (!menus) return schedule;
   return {
     ...schedule,
