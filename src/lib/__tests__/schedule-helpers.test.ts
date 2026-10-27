@@ -24,13 +24,27 @@ describe("schedule-helpers", () => {
   });
 
   it("instructionalPeriod formats ordinals correctly", () => {
-    expect((instructionalPeriod(1, "08:30:00", "09:15:00") as any).name).toBe("1st Period");
-    expect((instructionalPeriod(2, "08:30:00", "09:15:00") as any).name).toBe("2nd Period");
-    expect((instructionalPeriod(3, "08:30:00", "09:15:00") as any).name).toBe("3rd Period");
-    expect((instructionalPeriod(4, "08:30:00", "09:15:00") as any).name).toBe("4th Period");
-    expect((instructionalPeriod(11, "08:30:00", "09:15:00") as any).name).toBe("11st Period");
-    expect((instructionalPeriod(12, "08:30:00", "09:15:00") as any).name).toBe("12nd Period");
-    expect((instructionalPeriod(13, "08:30:00", "09:15:00") as any).name).toBe("13rd Period");
+    expect((instructionalPeriod(1, "08:30:00", "09:15:00") as any).name).toBe(
+      "1st Period",
+    );
+    expect((instructionalPeriod(2, "08:30:00", "09:15:00") as any).name).toBe(
+      "2nd Period",
+    );
+    expect((instructionalPeriod(3, "08:30:00", "09:15:00") as any).name).toBe(
+      "3rd Period",
+    );
+    expect((instructionalPeriod(4, "08:30:00", "09:15:00") as any).name).toBe(
+      "4th Period",
+    );
+    expect((instructionalPeriod(11, "08:30:00", "09:15:00") as any).name).toBe(
+      "11st Period",
+    );
+    expect((instructionalPeriod(12, "08:30:00", "09:15:00") as any).name).toBe(
+      "12nd Period",
+    );
+    expect((instructionalPeriod(13, "08:30:00", "09:15:00") as any).name).toBe(
+      "13rd Period",
+    );
   });
 
   it("finalPeriod creates correct period", () => {
