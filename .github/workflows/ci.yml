@@ -31,6 +31,8 @@ jobs:
         run: npx vitest run --coverage --coverage.thresholds.lines=100 --coverage.thresholds.branches=100 --coverage.thresholds.functions=100 --coverage.thresholds.statements=100
       - name: Build
         run: npm run build
+      - name: Gate - all checks passed
+        run: echo "All CI gates passed"
       - name: Setup Pages
         if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
