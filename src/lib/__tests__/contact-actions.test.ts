@@ -21,7 +21,7 @@ vi.mock("next/headers", () => ({
 
 describe("contact-actions", () => {
   it("module loads without errors", async () => {
-    const module = await import("../contact-actions");
-    expect(module).toBeDefined();
+    const mod = await import("../contact-actions");
+    expect(mod).toBeDefined();
   });
 });

@@ -26,9 +26,9 @@ describe("ics-import", () => {
   });
 
   it("module loads without errors", async () => {
-    const module = await import("../ics-import");
-    expect(module).toBeDefined();
-    expect(typeof module.generateDayOverrides).toBe("function");
-    expect(typeof module.getFoodMenus).toBe("function");
+    const mod = await import("../ics-import");
+    expect(mod).toBeDefined();
+    expect(typeof mod.generateDayOverrides).toBe("function");
+    expect(typeof mod.getFoodMenus).toBe("function");
   });
 });

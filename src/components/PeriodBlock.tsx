@@ -27,7 +27,7 @@ export function PeriodBlock({
     interval: portableToInterval(portablePeriod.interval),
   };
 
-  const [now, setNow] = useState<DateTime<boolean> | null>(null);
+  const [now, setNow] = useState<DateTime>(() => getNow());
 
   // Long titles in short boxes (e.g. "Evacuation Drill Review in 6th" in a
   // ten-minute block) spill past the border; step the text down until it fits.
@@ -38,10 +38,6 @@ export function PeriodBlock({
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Re-read once on mount so a stored time override applies immediately
-    // (getNow falls back to the real clock on the server).
-    setNow(getNow());
-
     const interval = setInterval(() => {
       setNow(getNow());
     }, 10000);

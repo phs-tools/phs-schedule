@@ -28,26 +28,26 @@ vi.mock("next/navigation", () => ({
 
 describe("App pages", () => {
   it("day page module loads", async () => {
-    const module = await import("../day/page");
-    expect(module).toBeDefined();
+    const mod = await import("../day/page");
+    expect(mod).toBeDefined();
   });
 
   it("day [date] page module loads", async () => {
-    const module = await import("../day/[date]/page");
-    expect(module).toBeDefined();
-    expect(typeof module.generateStaticParams).toBe("function");
-    expect(typeof module.default).toBe("function");
+    const mod = await import("../day/[date]/page");
+    expect(mod).toBeDefined();
+    expect(typeof (mod as any).generateStaticParams).toBe("function");
+    expect(typeof mod.default).toBe("function");
   });
 
   it("week page module loads", async () => {
-    const module = await import("../week/page");
-    expect(module).toBeDefined();
+    const mod = await import("../week/page");
+    expect(mod).toBeDefined();
   });
 
   it("week [date] page module loads", async () => {
-    const module = await import("../week/[date]/page");
-    expect(module).toBeDefined();
-    expect(typeof module.generateStaticParams).toBe("function");
-    expect(typeof module.default).toBe("function");
+    const mod = await import("../week/[date]/page");
+    expect(mod).toBeDefined();
+    expect(typeof (mod as any).generateStaticParams).toBe("function");
+    expect(typeof mod.default).toBe("function");
   });
 });

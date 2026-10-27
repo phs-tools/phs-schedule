@@ -33,8 +33,8 @@ vi.mock("next/server", () => ({
 
 describe("ical route", () => {
   it("module loads without errors", async () => {
-    const module = await import("../ical.ics/route");
-    expect(module).toBeDefined();
-    expect(typeof module.GET).toBe("function");
+    const mod = await import("../ical.ics/route");
+    expect(mod).toBeDefined();
+    expect(typeof mod.GET).toBe("function");
   });
 });
