@@ -39,7 +39,7 @@ describe("Component rendering", () => {
 
   it("PrefetchAdjacent renders", async () => {
     const { PrefetchAdjacent } = await import("../PrefetchAdjacent");
-    render(<PrefetchAdjacent date="2026-08-17" type="day" />);
+    render(<PrefetchAdjacent prev="2026-08-16" next="2026-08-18" />);
     expect(document.querySelector('link[rel="prefetch"]')).toBeDefined();
   });
 

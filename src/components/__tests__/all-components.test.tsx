@@ -44,7 +44,7 @@ describe("All components load", () => {
   });
 
   it("InfoMenu loads", async () => {
-    const mod = await import("../InfoMenu");
+    const mod: any = await import("../InfoMenu");
     expect(mod.default || mod.InfoMenu).toBeDefined();
   });
 
@@ -64,12 +64,12 @@ describe("All components load", () => {
   });
 
   it("about-dialog loads", async () => {
-    const mod = await import("../about-dialog");
+    const mod: any = await import("../about-dialog");
     expect(mod.AboutDialog || mod.default).toBeDefined();
   });
 
   it("calendary-sync-dialog loads", async () => {
-    const mod = await import("../calendary-sync-dialog");
+    const mod: any = await import("../calendary-sync-dialog");
     expect(mod.CalendarSyncDialog || mod.default).toBeDefined();
   });
 
