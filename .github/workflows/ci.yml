@@ -21,9 +21,16 @@ jobs:
           node-version: "24"
           cache: "npm"
       - run: npm ci
-      - run: npx vitest run --coverage --coverage.thresholds.lines=100 --coverage.thresholds.branches=100 --coverage.thresholds.functions=100 --coverage.thresholds.statements=100
-      - run: npm run lint
-      - run: npm run build
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Format check
+        run: npx prettier --check .
+      - name: Test
+        run: npx vitest run --coverage --coverage.thresholds.lines=100 --coverage.thresholds.branches=100 --coverage.thresholds.functions=100 --coverage.thresholds.statements=100
+      - name: Build
+        run: npm run build
       - name: Setup Pages
         if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
