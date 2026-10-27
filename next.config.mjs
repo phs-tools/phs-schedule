@@ -8,6 +8,12 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons", "luxon"],
+  },
 };
 
 export default nextConfig;

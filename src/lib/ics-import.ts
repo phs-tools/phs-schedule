@@ -193,10 +193,10 @@ type DayMenus = { lunch?: string; brunch?: string };
 let cachedFoodMenus: Record<string, DayMenus> | null = null;
 let foodMenusCacheTime = 0;
 let foodMenusPromise: Promise<Record<string, DayMenus>> | null = null;
-const FOOD_MENUS_CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const FOOD_MENUS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 // After a failed fetch, don't make every page wait on a dead feed, but retry
 // well before the normal TTL in case it recovers.
-const FOOD_MENUS_RETRY_MS = 5 * 60 * 1000; // 5 minutes
+const FOOD_MENUS_RETRY_MS = 30 * 1000; // 30 seconds
 
 async function loadFoodMenus(): Promise<Record<string, DayMenus>> {
   const now = Date.now();
@@ -279,13 +279,13 @@ function toIsoDate(date: Date): string {
 
 let cachedIcs: IcsRow[] | null = null;
 let cacheTime: number = 0;
-const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 let cachedIcsTextHash: string | null = null;
 let cachedParsedResult: IcsRow[] | null = null;
 
 // A slow third-party feed must not stall a page render.
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 3000;
 
 async function fetchIcsText(url: string): Promise<string> {
   const response = await fetch(url, {

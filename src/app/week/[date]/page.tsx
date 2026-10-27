@@ -5,6 +5,7 @@ import {
   DailySchedule,
   transformScheduleToDate,
   intervalToPortable,
+  schoolYearDates,
 } from "@/lib/schedule";
 import { DateTime } from "luxon";
 import Link from "next/link";
@@ -12,6 +13,20 @@ import { redirect } from "next/navigation";
 import { AnimatedSchedule } from "@/components/AnimatedSchedule";
 import InfoMenu from "@/components/InfoMenu";
 import { PeriodBlock } from "../../../components/PeriodBlock";
+import { DayLink } from "@/components/DayLink";
+import { PrefetchAdjacent } from "@/components/PrefetchAdjacent";
+
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  const dates = schoolYearDates();
+  const weeks = new Set<string>();
+  for (const d of dates) {
+    const dt = DateTime.fromFormat(d, "yyyy-LL-dd");
+    weeks.add(dt.startOf("week").toFormat("yyyy-LL-dd"));
+  }
+  return Array.from(weeks).map((date) => ({ date }));
+}
 
 export default async function WeekView({
   params,
@@ -56,8 +71,12 @@ export default async function WeekView({
     }
   }
 
+  const prevWeek = weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd");
+  const nextWeek = weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd");
+
   return (
     <>
+      <PrefetchAdjacent prev={`/week/${prevWeek}`} next={`/week/${nextWeek}`} />
       <div className="flex h-screen flex-col">
         <WeekNav date={weekStart.toFormat("yyyy-LL-dd")} />
         <main className="flex max-h-[800px] flex-1 items-stretch justify-center overflow-hidden">
@@ -130,14 +149,14 @@ function DailyScheduleView({
         }`}
       >
         {date && (
-          <Link href={`/day/${date.toFormat("yyyy-LL-dd")}`} prefetch>
-            <button className="flex min-w-[160px] cursor-pointer items-center justify-center gap-1 rounded-md border-none bg-transparent px-2 py-1 text-center text-base text-neutral-600 transition-colors select-none hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 print:hidden">
-              {date.weekdayLong}{" "}
-              <span className="text-neutral-500 dark:text-neutral-400">
-                {date.toFormat("M/d")}
-              </span>
-            </button>
-          </Link>
+          <DayLink
+            date={date.toFormat("yyyy-LL-dd")}
+            label={date.weekdayLong ?? ""}
+          >
+            <span className="text-neutral-500 dark:text-neutral-400">
+              {date.toFormat("M/d")}
+            </span>
+          </DayLink>
         )}
         {schedule.message && (
           <p className="text-center text-sm text-neutral-700 dark:text-neutral-300">

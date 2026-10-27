@@ -4,6 +4,7 @@ import { DateTime } from "luxon";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DatePickerMenu } from "@/components/DatePickerMenu";
@@ -12,6 +13,16 @@ import { scheduleTransitionTypes } from "@/components/AnimatedSchedule";
 export function WeekNav({ date }: { date: string }) {
   const router = useRouter();
   const weekStart = DateTime.fromFormat(date, "yyyy-LL-dd");
+
+  const prefetch = (href: string) => {
+    router.prefetch(href);
+  };
+
+  useEffect(() => {
+    prefetch(`/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`);
+    prefetch(`/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`);
+    prefetch("/week");
+  }, [weekStart.toISODate(), router]);
 
   return (
     <nav className="flex flex-col items-center gap-1">
@@ -26,13 +37,28 @@ export function WeekNav({ date }: { date: string }) {
           <Link
             href={`/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
             transitionTypes={scheduleTransitionTypes("week", "prev")}
-            prefetch
+            prefetch={false}
+            onMouseEnter={() =>
+              prefetch(
+                `/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+              )
+            }
+            onFocus={() =>
+              prefetch(
+                `/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+              )
+            }
           >
             <ChevronLeftIcon className="h-4 w-4" />
           </Link>
         </Button>
         <Button variant="ghost" size="sm" asChild className="print:hidden">
-          <Link href="/week" prefetch>
+          <Link
+            href="/week"
+            prefetch={false}
+            onMouseEnter={() => prefetch("/week")}
+            onFocus={() => prefetch("/week")}
+          >
             Today
           </Link>
         </Button>
@@ -46,7 +72,17 @@ export function WeekNav({ date }: { date: string }) {
           <Link
             href={`/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`}
             transitionTypes={scheduleTransitionTypes("week", "next")}
-            prefetch
+            prefetch={false}
+            onMouseEnter={() =>
+              prefetch(
+                `/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+              )
+            }
+            onFocus={() =>
+              prefetch(
+                `/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+              )
+            }
           >
             <ChevronRightIcon className="h-4 w-4" />
           </Link>
