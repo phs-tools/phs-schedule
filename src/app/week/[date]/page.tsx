@@ -149,7 +149,10 @@ function DailyScheduleView({
         }`}
       >
         {date && (
-          <DayLink date={date.toFormat("yyyy-LL-dd")} label={date.weekdayLong}>
+          <DayLink
+            date={date.toFormat("yyyy-LL-dd")}
+            label={date.weekdayLong ?? ""}
+          >
             <span className="text-neutral-500 dark:text-neutral-400">
               {date.toFormat("M/d")}
             </span>
