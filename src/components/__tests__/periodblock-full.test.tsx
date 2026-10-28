@@ -12,14 +12,20 @@ describe("PeriodBlock full", () => {
       id: "period-1",
       type: "instructional" as const,
       name: "1st Period",
-      interval: { start: "2026-08-17T08:30:00.000Z", end: "2026-08-17T09:15:00.000Z" },
+      interval: {
+        start: "2026-08-17T08:30:00.000Z",
+        end: "2026-08-17T09:15:00.000Z",
+      },
     };
     render(<PeriodBlock portablePeriod={portable} />);
   });
   it("renders passing", () => {
     const portable = {
       type: "passing" as const,
-      interval: { start: "2026-08-17T09:15:00.000Z", end: "2026-08-17T09:25:00.000Z" },
+      interval: {
+        start: "2026-08-17T09:15:00.000Z",
+        end: "2026-08-17T09:25:00.000Z",
+      },
     };
     render(<PeriodBlock portablePeriod={portable} />);
   });

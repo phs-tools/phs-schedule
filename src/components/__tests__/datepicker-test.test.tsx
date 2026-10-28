@@ -12,6 +12,12 @@ vi.mock("@/lib/now", () => ({
 
 describe("DatePickerMenu", () => {
   it("renders", () => {
-    render(<DatePickerMenu date="2026-08-17" type="day" />);
+    render(
+      <DatePickerMenu
+        label="Go to date"
+        defaultValue="2026-08-17"
+        onSelect={vi.fn()}
+      />,
+    );
   });
 });
