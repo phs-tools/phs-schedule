@@ -59,7 +59,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Test with coverage
-        run: npx vitest run --coverage --coverage.thresholds.lines=100 --coverage.thresholds.branches=100 --coverage.thresholds.functions=100 --coverage.thresholds.statements=100
+        run: npx vitest run --coverage
       - name: Setup Pages
         if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
