@@ -141,13 +141,13 @@ describe("progress", () => {
     ]);
   });
 
-  it("reports progress through brunch", () => {
-    const bars = buildProgressBars(periods, DateTime.fromISO(at("09:30")));
+  it("reports progress from the start of school to brunch", () => {
+    const bars = buildProgressBars(periods, DateTime.fromISO(at("09:00")));
     const brunch = bars.find((bar) => bar.id === "break-brunch");
 
-    expect(brunch?.progress).toBeCloseTo(5 / 15);
-    expect(brunch?.detail).toContain("9:25 AM–9:40 AM");
-    expect(brunch?.detail).toContain("10m left");
+    expect(brunch?.progress).toBeCloseTo(30 / 55);
+    expect(brunch?.detail).toContain("8:30 AM–9:25 AM");
+    expect(brunch?.detail).toContain("25m left");
   });
 
   it("reports the current period", () => {

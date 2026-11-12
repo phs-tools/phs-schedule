@@ -255,22 +255,26 @@ function semesterWindow(now: DateTime): {
   return { label: "Second semester", start: secondStart, end: secondEnd };
 }
 
-function breakDetail(period: VisiblePeriod, now: DateTime): string {
-  const start = period.interval.start;
-  const end = period.interval.end;
-  if (!start || !end) return "";
+function breakLeadUpDetail(
+  dayStart: DateTime,
+  breakStart: DateTime,
+  now: DateTime,
+): string {
+  const window = `${dayStart.toFormat("h:mm a")}–${breakStart.toFormat(
+    "h:mm a",
+  )}`;
 
-  const window = `${start.toFormat("h:mm a")}–${end.toFormat("h:mm a")}`;
-  if (now < start) {
+  if (now < dayStart) {
     return `${window} • starts in ${formatDurationShort(
-      start.diff(now).toMillis(),
+      dayStart.diff(now).toMillis(),
     )}`;
   }
-  if (now >= end) return `${window} • complete`;
 
-  const progress = progressBetween(now, start, end);
+  const progress = progressBetween(now, dayStart, breakStart);
+  if (progress >= 1) return `${window} • complete`;
+
   return `${window} • ${percent(progress)} • ${formatDurationShort(
-    end.diff(now).toMillis(),
+    breakStart.diff(now).toMillis(),
   )} left`;
 }
 
@@ -325,21 +329,16 @@ export function buildProgressBars(
     dayStart && dayEnd ? progressBetween(now, dayStart, dayEnd) : 0;
 
   const current = currentPeriodDetail(visible, now);
-  const breakBars: ProgressBar[] = visible
-    .filter(
-      (period) =>
-        period.type === "break" && period.interval.start && period.interval.end,
-    )
-    .map((period) => ({
-      id: `break-${period.id}`,
-      label: period.name,
-      detail: breakDetail(period, now),
-      progress: progressBetween(
-        now,
-        period.interval.start!,
-        period.interval.end!,
-      ),
-    }));
+  const breakBars: ProgressBar[] = dayStart
+    ? visible
+        .filter((period) => period.type === "break" && period.interval.start)
+        .map((period) => ({
+          id: `break-${period.id}`,
+          label: period.name,
+          detail: breakLeadUpDetail(dayStart, period.interval.start!, now),
+          progress: progressBetween(now, dayStart, period.interval.start!),
+        }))
+    : [];
   const completed = classes.filter(
     (period) => period.interval.end && period.interval.end <= now,
   ).length;
