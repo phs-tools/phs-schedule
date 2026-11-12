@@ -131,6 +131,7 @@ describe("progress", () => {
 
     expect(ids).toEqual([
       "current-period",
+      "break-brunch",
       "school-day",
       "classes-complete",
       "week",
@@ -138,6 +139,15 @@ describe("progress", () => {
       "semester",
       "school-year",
     ]);
+  });
+
+  it("reports progress through brunch", () => {
+    const bars = buildProgressBars(periods, DateTime.fromISO(at("09:30")));
+    const brunch = bars.find((bar) => bar.id === "break-brunch");
+
+    expect(brunch?.progress).toBeCloseTo(5 / 15);
+    expect(brunch?.detail).toContain("9:25 AM–9:40 AM");
+    expect(brunch?.detail).toContain("10m left");
   });
 
   it("reports the current period", () => {

@@ -131,6 +131,7 @@ describe("ProgressView", () => {
     expect(screen.getByText("Semester")).toBeInTheDocument();
     expect(screen.getByText("School year")).toBeInTheDocument();
     expect(screen.getByText("Today's periods")).toBeInTheDocument();
+    expect(screen.getAllByText("Brunch")).toHaveLength(2);
   });
 
   it("renders one mini bar per period", () => {

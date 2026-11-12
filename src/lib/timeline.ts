@@ -255,6 +255,25 @@ function semesterWindow(now: DateTime): {
   return { label: "Second semester", start: secondStart, end: secondEnd };
 }
 
+function breakDetail(period: VisiblePeriod, now: DateTime): string {
+  const start = period.interval.start;
+  const end = period.interval.end;
+  if (!start || !end) return "";
+
+  const window = `${start.toFormat("h:mm a")}–${end.toFormat("h:mm a")}`;
+  if (now < start) {
+    return `${window} • starts in ${formatDurationShort(
+      start.diff(now).toMillis(),
+    )}`;
+  }
+  if (now >= end) return `${window} • complete`;
+
+  const progress = progressBetween(now, start, end);
+  return `${window} • ${percent(progress)} • ${formatDurationShort(
+    end.diff(now).toMillis(),
+  )} left`;
+}
+
 function currentPeriodDetail(
   periods: VisiblePeriod[],
   now: DateTime,
@@ -306,6 +325,21 @@ export function buildProgressBars(
     dayStart && dayEnd ? progressBetween(now, dayStart, dayEnd) : 0;
 
   const current = currentPeriodDetail(visible, now);
+  const breakBars: ProgressBar[] = visible
+    .filter(
+      (period) =>
+        period.type === "break" && period.interval.start && period.interval.end,
+    )
+    .map((period) => ({
+      id: `break-${period.id}`,
+      label: period.name,
+      detail: breakDetail(period, now),
+      progress: progressBetween(
+        now,
+        period.interval.start!,
+        period.interval.end!,
+      ),
+    }));
   const completed = classes.filter(
     (period) => period.interval.end && period.interval.end <= now,
   ).length;
@@ -327,6 +361,7 @@ export function buildProgressBars(
       detail: current.detail,
       progress: current.progress,
     },
+    ...breakBars,
     {
       id: "school-day",
       label: "School day",
