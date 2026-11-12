@@ -1,3 +1,4 @@
+import "./zone";
 import { DateTime } from "luxon";
 
 /*
@@ -19,6 +20,10 @@ export function getNow(): DateTime {
     if (override) {
       const parsed = DateTime.fromISO(override);
       if (parsed.isValid) return parsed;
+
+      // Also accept the friendlier "2026-12-01 8:45" form.
+      const spaced = DateTime.fromFormat(override, "yyyy-LL-dd H:mm");
+      if (spaced.isValid) return spaced;
     }
   }
   return DateTime.now();

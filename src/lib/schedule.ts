@@ -58,6 +58,13 @@ export type DailySchedule = {
 export const SCHOOL_YEAR_START = DateTime.fromISO("2026-08-10");
 export const SCHOOL_YEAR_END = DateTime.fromISO("2027-06-04");
 
+// Semester boundaries come from the district events calendar: first semester
+// ends before winter break and second semester starts after it.
+export const SEMESTER_1_START = SCHOOL_YEAR_START;
+export const SEMESTER_1_END = DateTime.fromISO("2026-12-18");
+export const SEMESTER_2_START = DateTime.fromISO("2027-01-06");
+export const SEMESTER_2_END = SCHOOL_YEAR_END;
+
 /// Every date in the school year, for `generateStaticParams`. Pages are built
 /// ahead of time so a first visit never waits on the calendar feeds.
 export function schoolYearDates(): string[] {

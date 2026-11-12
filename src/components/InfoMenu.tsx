@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DotsVerticalIcon } from "@radix-ui/react-icons";
+import Link from "next/link";
 import { useState } from "react";
 import { CalendarSyncDialog } from "./calendary-sync-dialog";
 import { AboutDialog } from "./about-dialog";
@@ -33,6 +34,15 @@ export default function InfoMenu() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {/* <DropdownMenuItem>Add my classes</DropdownMenuItem> */}
+            <DropdownMenuItem asChild>
+              <Link href="/countdown">Countdown</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/progress">Progress</Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
             <DialogTrigger asChild>
               <DropdownMenuItem onClick={() => setDialogType("calendar")}>
                 Add to calendar

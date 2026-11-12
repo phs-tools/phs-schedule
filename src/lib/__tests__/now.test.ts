@@ -34,6 +34,17 @@ describe("getNow", () => {
     expect(now.minute).toBe(45);
   });
 
+  it("accepts a date and time separated by a space", () => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("phs-schedule-time", "2026-12-01 8:45");
+    const now = getNow();
+    expect(now.year).toBe(2026);
+    expect(now.month).toBe(12);
+    expect(now.day).toBe(1);
+    expect(now.hour).toBe(8);
+    expect(now.minute).toBe(45);
+  });
+
   it("returns current time if override is invalid", () => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem("phs-schedule-time", "not-a-date");
