@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DatePickerMenu } from "@/components/DatePickerMenu";
@@ -12,18 +12,18 @@ import { scheduleTransitionTypes } from "@/components/AnimatedSchedule";
 
 export function DayNav({ date }: { date: string }) {
   const router = useRouter();
-  const day = DateTime.fromFormat(date, "yyyy-LL-dd");
+  const day = useMemo(() => DateTime.fromFormat(date, "yyyy-LL-dd"), [date]);
 
   const prefetch = (href: string) => {
     router.prefetch(href);
   };
 
   useEffect(() => {
-    prefetch(`/day/${day.minus({ days: 1 }).toFormat("yyyy-LL-dd")}`);
-    prefetch(`/day/${day.plus({ days: 1 }).toFormat("yyyy-LL-dd")}`);
-    prefetch("/day");
-    prefetch(`/week/${day.startOf("week").toFormat("yyyy-LL-dd")}`);
-  }, [day.toISODate(), router]);
+    router.prefetch(`/day/${day.minus({ days: 1 }).toFormat("yyyy-LL-dd")}`);
+    router.prefetch(`/day/${day.plus({ days: 1 }).toFormat("yyyy-LL-dd")}`);
+    router.prefetch("/day");
+    router.prefetch(`/week/${day.startOf("week").toFormat("yyyy-LL-dd")}`);
+  }, [day, router]);
 
   return (
     <nav className="flex flex-col items-center gap-1">

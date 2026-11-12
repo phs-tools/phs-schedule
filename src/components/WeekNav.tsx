@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DatePickerMenu } from "@/components/DatePickerMenu";
@@ -12,17 +12,24 @@ import { scheduleTransitionTypes } from "@/components/AnimatedSchedule";
 
 export function WeekNav({ date }: { date: string }) {
   const router = useRouter();
-  const weekStart = DateTime.fromFormat(date, "yyyy-LL-dd");
+  const weekStart = useMemo(
+    () => DateTime.fromFormat(date, "yyyy-LL-dd"),
+    [date],
+  );
 
   const prefetch = (href: string) => {
     router.prefetch(href);
   };
 
   useEffect(() => {
-    prefetch(`/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`);
-    prefetch(`/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`);
-    prefetch("/week");
-  }, [weekStart.toISODate(), router]);
+    router.prefetch(
+      `/week/${weekStart.minus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+    );
+    router.prefetch(
+      `/week/${weekStart.plus({ weeks: 1 }).toFormat("yyyy-LL-dd")}`,
+    );
+    router.prefetch("/week");
+  }, [weekStart, router]);
 
   return (
     <nav className="flex flex-col items-center gap-1">
