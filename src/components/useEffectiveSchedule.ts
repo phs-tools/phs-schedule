@@ -33,29 +33,19 @@ export function useEffectiveSchedule({
   message?: string;
   now: DateTime | null;
 }): EffectiveSchedule {
-  const [schedule, setSchedule] = useState<EffectiveSchedule>(() => ({
-    date,
-    periods,
-    message,
-    loading: false,
-  }));
-  const activeDate = useRef(date);
+  const [, setVersion] = useState(0);
+  const requested = useRef(new Set<string>());
   const nowDate = now?.toFormat("yyyy-LL-dd");
+  const effectiveDate = nowDate ?? date;
 
   useEffect(() => {
-    if (!nowDate || nowDate === activeDate.current) return;
+    const requestedDates = requested.current;
+    if (!nowDate || nowDate === date) return;
+    if (cache.has(nowDate) || requestedDates.has(nowDate)) return;
 
-    const cached = cache.get(nowDate);
-    if (cached) {
-      activeDate.current = nowDate;
-      setSchedule({ ...cached, loading: false });
-      return;
-    }
-
-    activeDate.current = nowDate;
-    setSchedule({ date: nowDate, periods: [], loading: true });
-
+    requestedDates.add(nowDate);
     const controller = new AbortController();
+
     fetch(`/api/schedule?date=${nowDate}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -63,23 +53,33 @@ export function useEffectiveSchedule({
       })
       .then((data) => {
         cache.set(data.date, data);
-        if (activeDate.current !== data.date) return;
-        setSchedule({ ...data, loading: false });
+        setVersion((version) => version + 1);
       })
       .catch((error: unknown) => {
         if ((error as { name?: string })?.name === "AbortError") return;
-        if (activeDate.current !== nowDate) return;
 
-        setSchedule({
+        cache.set(nowDate, {
           date: nowDate,
           periods: [],
           message: "Could not load schedule",
-          loading: false,
         });
+        setVersion((version) => version + 1);
       });
 
-    return () => controller.abort();
-  }, [nowDate]);
+    return () => {
+      controller.abort();
+      requestedDates.delete(nowDate);
+    };
+  }, [nowDate, date]);
 
-  return schedule;
+  if (effectiveDate === date) {
+    return { date, periods, message, loading: false };
+  }
+
+  const cached = cache.get(effectiveDate);
+  if (cached) {
+    return { ...cached, loading: false };
+  }
+
+  return { date: effectiveDate, periods: [], loading: true };
 }

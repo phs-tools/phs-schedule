@@ -1,3 +1,8 @@
 const next = require("eslint-config-next/core-web-vitals");
 
-module.exports = next;
+module.exports = [
+  ...next,
+  {
+    ignores: ["coverage/**", ".next/**"],
+  },
+];

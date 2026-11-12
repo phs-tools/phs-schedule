@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { SCHOOL_ZONE } from "@/lib/zone";
 import { Clock } from "lucide-react";
 import { DateTime } from "luxon";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /**
  * Sets the instant the countdown is counting down to. It defaults to the
@@ -35,13 +35,16 @@ export function CountdownTargetControl({
   );
   const [timeValue, setTimeValue] = useState(selected?.toFormat("HH:mm") ?? "");
 
-  useEffect(() => {
-    const target = value ?? fallback;
-    if (!target) return;
-
-    setDateValue(target.toFormat("yyyy-LL-dd"));
-    setTimeValue(target.toFormat("HH:mm"));
-  }, [value, fallback]);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      const target = value ?? fallback;
+      if (target) {
+        setDateValue(target.toFormat("yyyy-LL-dd"));
+        setTimeValue(target.toFormat("HH:mm"));
+      }
+    }
+    setOpen(nextOpen);
+  };
 
   const apply = () => {
     if (!dateValue || !timeValue) return;
@@ -56,7 +59,7 @@ export function CountdownTargetControl({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-1">
           <Clock className="h-3.5 w-3.5" />
